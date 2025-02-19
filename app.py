@@ -178,3 +178,167 @@ class Shelf(Furniture):
     def __str__(self) -> str:
         base_str = super().__str__()
         return f"{base_str}, Wall Mounted: {self.wall_mounted}"
+
+
+
+
+
+
+
+
+
+
+
+### PART 2
+
+
+
+
+
+
+
+from typing import Dict, List
+from furniture import Furniture, Chair, Table, Sofa, Lamp, Shelf
+
+class Inventory:
+    """
+    מחלקה לניהול מלאי הרהיטים. ממומשת כ-Singleton כדי להבטיח מופע יחיד של המלאי.
+    """
+
+    _instance = None  # משתנה סטטי שיחזיק את המופע היחיד של המחלקה
+
+    def __init__(self):
+        """
+        מאתחל את מבנה הנתונים של המלאי:
+        - items: מילון שממפה אובייקט רהיט (furniture) למספר הכמות הקיימת במלאי.
+        """
+        if Inventory._instance is not None:
+            # מניעת יצירת מופע נוסף של Singleton
+            raise Exception("Inventory is a singleton class. Use Inventory.get_instance() instead.")
+        self.items: Dict[Furniture, int] = {}
+        Inventory._instance = self
+
+    @staticmethod
+    def get_instance():
+        """
+        מחזיר את המופע הקיים של המחלקה, או יוצר אחד חדש אם לא קיים.
+        """
+        if Inventory._instance is None:
+            Inventory()
+        return Inventory._instance
+
+    # ----------------------------------------------------------------
+    # CRUD Operations (Create/Read/Update/Delete)
+    # ----------------------------------------------------------------
+
+    def add_item(self, furniture: Furniture, quantity: int = 1) -> None:
+        """
+        מוסיף פריט למלאי, אם כבר קיים - מעדכן את הכמות.
+        :param furniture: אובייקט רהיט להוספה
+        :param quantity: כמות להוספה
+        """
+        if furniture in self.items:
+            self.items[furniture] += quantity
+        else:
+            self.items[furniture] = quantity
+
+    def remove_item(self, furniture: Furniture, quantity: int = 1) -> bool:
+        """
+        מסיר כמות מסוימת של הפריט מהמלאי. אם הכמות מגיעה לאפס - מסיר לחלוטין.
+        :param furniture: הרהיט להסרה
+        :param quantity: כמה להסיר
+        :return: True אם הצלחנו להסיר, False אם לא היה ניתן להסיר (למשל אם אין מספיק במלאי).
+        """
+        if furniture not in self.items:
+            return False
+
+        if self.items[furniture] < quantity:
+            return False
+
+        self.items[furniture] -= quantity
+        if self.items[furniture] <= 0:
+            del self.items[furniture]  # מסירים לגמרי מהמילון
+        return True
+
+    def update_quantity(self, furniture: Furniture, new_quantity: int) -> bool:
+        """
+        מעדכן את הכמות של פריט מסוים במלאי.
+        :param furniture: הרהיט לעדכן
+        :param new_quantity: הכמות החדשה
+        :return: True אם בוצע בהצלחה, False אם הרהיט לא קיים במלאי.
+        """
+        if furniture not in self.items:
+            return False
+        self.items[furniture] = new_quantity
+        if new_quantity <= 0:
+            del self.items[furniture]
+        return True
+
+    # ----------------------------------------------------------------
+    # Search Methods
+    # ----------------------------------------------------------------
+
+    def search_by_name(self, name_substring: str) -> List[Furniture]:
+        """
+        מחזיר רשימת רהיטים שהשם שלהם מכיל את הטקסט המבוקש (case-insensitive).
+        :param name_substring: טקסט לחיפוש בשם הרהיט
+        :return: רשימת אובייקטי רהיט תואמים.
+        """
+        name_substring = name_substring.lower()
+        results = []
+        for f in self.items.keys():
+            if name_substring in f.name.lower():
+                results.append(f)
+        return results
+
+    def search_by_price_range(self, min_price: float, max_price: float) -> List[Furniture]:
+        """
+        מחזיר רשימת רהיטים שהמחיר שלהם נמצא בטווח המבוקש [min_price, max_price].
+        :param min_price: מחיר מינימלי
+        :param max_price: מחיר מקסימלי
+        :return: רשימת אובייקטי רהיט העומדים בתנאי
+        """
+        results = []
+        for f in self.items.keys():
+            if min_price <= f.price <= max_price:
+                results.append(f)
+        return results
+
+    def search_by_type(self, furniture_type: type) -> List[Furniture]:
+        """
+        מחזיר רשימת רהיטים מהסוג המבוקש (Chair, Table, Sofa וכו').
+        :param furniture_type: מחלקת הרהיט (Chair, Table וכו').
+        :return: רשימת רהיטים המתאימים לסוג
+        """
+        results = []
+        for f in self.items.keys():
+            if isinstance(f, furniture_type):
+                results.append(f)
+        return results
+
+    # ----------------------------------------------------------------
+    # Utilities
+    # ----------------------------------------------------------------
+
+    def get_quantity(self, furniture: Furniture) -> int:
+        """
+        מחזיר כמה יחידות של רהיט מסוים יש במלאי, או 0 אם לא קיים.
+        """
+        return self.items.get(furniture, 0)
+
+    def total_unique_items(self) -> int:
+        """
+        מחזיר את מספר סוגי הרהיטים במלאי.
+        """
+        return len(self.items)
+
+    def __str__(self) -> str:
+        """
+        מציג תוכן מלאי בצורה קריאה.
+        """
+        if not self.items:
+            return "Inventory is empty."
+        lines = ["Inventory:"]
+        for furniture, qty in self.items.items():
+            lines.append(f"{furniture} | Quantity: {qty}")
+        return "\n".join(lines)
