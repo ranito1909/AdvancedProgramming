@@ -1,7 +1,8 @@
 ### Part 1 ###
 
 from abc import ABC, abstractmethod
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Optional
+
 
 
 # --------------------------------------------------------------------
@@ -394,7 +395,6 @@ class Inventory:
 ### Pat 3 ###
 
 import hashlib
-from typing import Dict, List, Optional
 
 
 class User:
@@ -560,10 +560,7 @@ class User:
 
 ### Part 4 ###
 
-
 from __future__ import annotations
-from abc import ABC, abstractmethod
-from typing import List, Optional
 
 
 # --------------------------------------------------------------------
@@ -721,15 +718,7 @@ class ShoppingCart:
 
 
 ### Part 5 ###
-
-
-from typing import Optional
-
-from user_management import User  # From Part 3 (your User class)
-from inventory import Inventory   # From Part 2
-from shopping_cart import ShoppingCart, LeafItem, CompositeItem, CartComponent  # From Part 4
-
-
+print(1)
 class Checkout:
     """
     A Checkout system that handles:
