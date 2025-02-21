@@ -1,7 +1,7 @@
 ### Part 1 ###
 
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Tuple, Dict, List
 
 
 # --------------------------------------------------------------------
@@ -254,10 +254,6 @@ class Shelf(Furniture):
 
 
 ### PART 2 ###
-
-from typing import Dict, List
-from furniture import Furniture, Chair, Table, Sofa, Lamp, Shelf
-
 
 class Inventory:
     """
