@@ -250,3 +250,145 @@ class Shelf(Furniture):
     def __str__(self) -> str:
         base_str = super().__str__()
         return f"{base_str}, Wall Mounted: {self.wall_mounted}"
+    
+
+
+### PART 2 ###
+
+from typing import Dict, List
+from furniture import Furniture, Chair, Table, Sofa, Lamp, Shelf
+
+
+class Inventory:
+    """
+    A Singleton class that manages an inventory of furniture.
+    Only one instance of this class can exist.
+    """
+
+    _instance = None  # Static variable to hold the single instance of the class
+
+    def __init__(self):
+        """
+        Initialize the data structure for the inventory:
+        - items: a dictionary mapping a Furniture object to the quantity in stock.
+        """
+        if Inventory._instance is not None:
+            # Prevent creating another instance of a Singleton
+            raise Exception(
+                "Inventory is a singleton class. Use Inventory.get_instance() instead."
+            )
+        self.items: Dict[Furniture, int] = {}
+        Inventory._instance = self
+
+    @staticmethod
+    def get_instance():
+        """
+        Return the existing instance of the class or create a new one if it doesn't exist.
+        """
+        if Inventory._instance is None:
+            Inventory()
+        return Inventory._instance
+
+    # ----------------------------------------------------------------
+    # Add, Remove and Update quantity Operations
+    # ----------------------------------------------------------------
+
+    def add_item(self, furniture: Furniture, quantity: int = 1) -> None:
+        """
+        Add a furniture item to the inventory. 
+        If the item already exists, update its quantity.
+
+        :param furniture: The furniture object to add.
+        :param quantity: The number of units to add (default is 1).
+        """
+        if furniture in self.items:
+            self.items[furniture] += quantity
+        else:
+            self.items[furniture] = quantity
+
+    def remove_item(self, furniture: Furniture, quantity: int = 1) -> bool:
+        """
+        Remove a certain quantity of the item from the inventory. 
+        If the quantity reaches zero, remove it completely.
+
+        :param furniture: The furniture object to remove.
+        :param quantity: The number of units to remove (default is 1).
+        :return: True if removal succeeded, False if it failed (e.g., not enough in stock).
+        """
+        if furniture not in self.items:
+            return False
+
+        if self.items[furniture] < quantity:
+            return False
+
+        self.items[furniture] -= quantity
+        if self.items[furniture] <= 0:
+            del self.items[furniture]
+        return True
+
+    def update_quantity(self, furniture: Furniture, new_quantity: int) -> bool:
+        """
+        Update the quantity of a specific furniture item in the inventory.
+
+        :param furniture: The furniture object to update.
+        :param new_quantity: The new quantity.
+        :return: True if the update was successful, False if the furniture isn't in the inventory.
+        """
+        if furniture not in self.items:
+            return False
+
+        self.items[furniture] = new_quantity
+        if new_quantity <= 0:
+            del self.items[furniture]
+        return True
+
+    # ----------------------------------------------------------------
+    # Search Method
+    # ----------------------------------------------------------------
+
+    from typing import List, Optional, Type
+
+    def search(
+        self,
+        name_substring: Optional[str] = None,
+        min_price: Optional[float] = None,
+        max_price: Optional[float] = None,
+        furniture_type: Optional[Type] = None
+    ) -> List["Furniture"]:
+        """
+        Perform a flexible search across all furniture items in the inventory.
+
+        This method can filter by:
+        - Partial name match (case-insensitive).
+        - Price range (min_price to max_price).
+        - Furniture type (class).
+
+        :param name_substring: Text to search for in the furniture name (case-insensitive).
+        :param min_price: The minimum price. If None, no lower-bound price check is performed.
+        :param max_price: The maximum price. If None, no upper-bound price check is performed.
+        :param furniture_type: The class of the furniture (e.g., Chair, Table). If None,
+                            no type check is performed.
+        :return: A list of Furniture objects matching all specified criteria.
+        """
+        results = []
+
+        for furniture_item in self.items.keys():
+            # 1. Check name substring, if provided
+            if name_substring is not None:
+                if name_substring.lower() not in furniture_item.name.lower():
+                    continue  # Doesn't match this filter, skip
+
+            # 2. Check price range, if provided
+            if (min_price is not None and furniture_item.price < min_price) or \
+            (max_price is not None and furniture_item.price > max_price):
+                continue  # Price out of range, skip
+
+            # 3. Check furniture type, if provided
+            if furniture_type is not None:
+                if not isinstance(furniture_item, furniture_type):
+                    continue  # Wrong type, skip
+
+            # If all filters passed (or were not provided), add to results
+            results.append(furniture_item)
+
+        return results
