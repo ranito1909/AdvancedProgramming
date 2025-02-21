@@ -1,7 +1,7 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Tuple, Dict, List, Optional
 import hashlib
-from __future__ import annotations
 from enum import Enum
 from datetime import datetime
 
