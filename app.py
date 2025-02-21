@@ -318,7 +318,7 @@ def update_user(email):
     user.update_profile(name=name, address=address)
     save_users()
 
-    return jsonify({"message": f"User '{email}' updated successfully"}), 200
+    return jsonify({"message": f"User '{email}' updated successfully"}), 200 
 
 
 @app.route("/api/users/<string:email>", methods=["DELETE"])
