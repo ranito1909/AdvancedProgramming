@@ -392,3 +392,170 @@ class Inventory:
             results.append(furniture_item)
 
         return results
+    
+
+
+### Pat 3 ###
+
+import hashlib
+from typing import Dict, List, Optional
+
+
+class User:
+    """
+    A class that show both the 'User' data model and the user management system.
+
+    This class includes:
+      - Instance-level attributes and methods for a single user
+        (name, email, password_hash, address, etc.).
+      - Class-level data structures and methods for managing multiple
+        users (register, login, retrieve, delete, etc.).
+
+    Attributes (instance-level):
+        name (str): The user's name.
+        email (str): The user's unique email address (identifier).
+        password_hash (str): The hashed password for authentication.
+        address (str): The user's address (optional).
+        order_history (List[str]): A list containing details about past orders.
+
+    Attributes (class-level):
+        _users (Dict[str, User]): A dictionary storing all user objects,
+                                  keyed by email.
+    """
+
+    _users: Dict[str, "User"] = {}
+
+    def __init__(
+        self,
+        name: str,
+        email: str,
+        password_hash: str,
+        address: str = "",
+        order_history: Optional[List[str]] = None
+    ):
+        """
+        Initialize a User instance.
+
+        :param name: The user's name.
+        :param email: The user's unique email address.
+        :param password_hash: The SHA-256 hash of the user's password.
+        :param address: The user's address (optional).
+        :param order_history: A list containing the user's order history (optional).
+        """
+        self.name = name
+        self.email = email
+        self.password_hash = password_hash
+        self.address = address
+        self.order_history = order_history if order_history is not None else []
+
+    # ----------------------------------------------------------------
+    # Class-Level Methods (User Management)
+    # ----------------------------------------------------------------
+
+    @classmethod
+    def register_user(cls, name: str, email: str, raw_password: str, address: str = "") -> "User":
+        """
+        Register a new user with the provided details.
+
+        :param name: The user's name.
+        :param email: The user's unique email address.
+        :param raw_password: The user's plain-text password (will be hashed).
+        :param address: The user's address (optional).
+        :return: The newly created User object.
+        :raises ValueError: If a user with the same email already exists.
+        """
+        if email in cls._users:
+            raise ValueError(f"A user with email '{email}' already exists.")
+
+        password_hash = cls._hash_password(raw_password)
+        user = cls(name, email, password_hash, address)
+        cls._users[email] = user
+        return user
+
+    @classmethod
+    def login_user(cls, email: str, raw_password: str) -> Optional["User"]:
+        """
+        Attempt to log in a user by verifying their email and password.
+
+        :param email: The user's email.
+        :param raw_password: The plain-text password provided by the user.
+        :return: The User object if login is successful, or None otherwise.
+        """
+        user = cls._users.get(email)
+        if user and user.check_password(raw_password):
+            return user
+        return None
+
+    @classmethod
+    def get_user(cls, email: str) -> Optional["User"]:
+        """
+        Retrieve a user by their email address.
+
+        :param email: The email of the user to retrieve.
+        :return: The User object if found, or None if no user with that email exists.
+        """
+        return cls._users.get(email)
+
+    @classmethod
+    def delete_user(cls, email: str) -> bool:
+        """
+        Remove a user from the system.
+
+        :param email: The email of the user to remove.
+        :return: True if the user was successfully removed, False otherwise.
+        """
+        if email in cls._users:
+            del cls._users[email]
+            return True
+        return False
+
+    # ----------------------------------------------------------------
+    # Instance-Level Methods (Per-User Functionality)
+    # ----------------------------------------------------------------
+
+    def set_password(self, raw_password: str) -> None:
+        """
+        Set (or reset) the user's password by hashing it.
+
+        :param raw_password: The plain-text password.
+        """
+        self.password_hash = self._hash_password(raw_password)
+
+    def check_password(self, raw_password: str) -> bool:
+        """
+        Verify that the provided plain-text password matches the stored hash.
+
+        :param raw_password: The plain-text password to check.
+        :return: True if the password is correct, False otherwise.
+        """
+        return self._hash_password(raw_password) == self.password_hash
+
+    def update_profile(self, name: Optional[str] = None, address: Optional[str] = None) -> None:
+        """
+        Update the user's profile information (e.g., name and address).
+
+        :param name: The new name of the user (if provided).
+        :param address: The new address of the user (if provided).
+        """
+        if name is not None:
+            self.name = name
+        if address is not None:
+            self.address = address
+
+    def add_order(self, order_info: str) -> None:
+        """
+        Add an order entry to the user's order history.
+
+        :param order_info: A string containing order details (e.g., item name, date).
+        """
+        self.order_history.append(order_info)
+
+    @staticmethod
+    def _hash_password(raw_password: str) -> str:
+        """
+        Hash a plain-text password using SHA-256.
+
+        :param raw_password: The plain-text password to hash.
+        :return: The SHA-256 hexadecimal digest of the password.
+        """
+        return hashlib.sha256(raw_password.encode('utf-8')).hexdigest()
