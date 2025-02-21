@@ -727,13 +727,6 @@ class ShoppingCart:
 ### Part 5 ###
 
 
-from typing import Optional
-
-from user_management import User  # From Part 3 (your User class)
-from inventory import Inventory   # From Part 2
-from shopping_cart import ShoppingCart, LeafItem, CompositeItem, CartComponent  # From Part 4
-
-
 class Checkout:
     """
     A Checkout system that handles:
@@ -879,3 +872,66 @@ class Checkout:
                 return furniture_item
         return None
 
+
+
+### Part 6 ###
+
+from enum import Enum
+from datetime import datetime
+
+
+class OrderStatus(Enum):
+    PENDING = "pending"
+    SHIPPED = "shipped"
+    DELIVERED = "delivered"
+    CANCELED = "canceled"
+
+
+class Order:
+    """
+    Represents a single purchase/order made by a user.
+
+    Attributes:
+        user: The user who placed the order.
+        items: A list of items purchased (e.g., LeafItem objects).
+        total_price: The total cost of all items at checkout time.
+        status: Current status of the order (pending, shipped, etc.).
+        created_at: A timestamp indicating when the order was created.
+    """
+
+    def __init__(
+        self,
+        user,
+        items: List[LeafItem],
+        total_price: float,
+        status: OrderStatus = OrderStatus.PENDING
+    ):
+        self.user = user
+        self.items = items
+        self.total_price = total_price
+        self.status = status
+        self.created_at = datetime.now()
+
+    def set_status(self, new_status: OrderStatus) -> None:
+        """
+        Update the status of the order (e.g., from pending to shipped).
+        """
+        self.status = new_status
+
+    def get_status(self) -> OrderStatus:
+        """
+        Return the current status of the order.
+        """
+        return self.status
+
+    def __str__(self) -> str:
+        """
+        Return a string representation of the order.
+        """
+        item_descriptions = ", ".join([f"{i.name} x {i.quantity}" for i in self.items])
+        return (
+            f"Order for {self.user.name} | Status: {self.status.value}\n"
+            f"Items: {item_descriptions}\n"
+            f"Total Price: {self.total_price:.2f}\n"
+            f"Created at: {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
