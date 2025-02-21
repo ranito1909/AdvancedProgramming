@@ -718,7 +718,6 @@ class ShoppingCart:
 
 
 ### Part 5 ###
-print(1)
 class Checkout:
     """
     A Checkout system that handles:
@@ -864,3 +863,4 @@ class Checkout:
                 return furniture_item
         return None
 
+print(2)
