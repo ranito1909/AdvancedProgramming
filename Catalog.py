@@ -744,7 +744,9 @@ class LeafItem(CartComponent):
         """
         String representation to easily see name, price, and quantity.
         """
-        return f"LeafItem({self.name}, Price={self.unit_price:.2f}, Qty={self.quantity})"
+        return (
+            f"LeafItem({self.name}, Price={self.unit_price:.2f}, Qty={self.quantity})"
+        )
 
 
 # --------------------------------------------------------------------
@@ -835,7 +837,9 @@ class ShoppingCart:
         """
         return self.root.get_price()
 
-    def apply_discount(self, percentage: float, target: Optional[CartComponent] = None) -> None:
+    def apply_discount(
+        self, percentage: float, target: Optional[CartComponent] = None
+    ) -> None:
         """
         Apply a discount to the entire cart or a specific component.
 
