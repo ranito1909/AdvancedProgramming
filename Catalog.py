@@ -878,3 +878,4 @@ class Checkout:
             if furniture_item.name == name:
                 return furniture_item
         return None
+
