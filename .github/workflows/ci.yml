@@ -14,32 +14,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-cov requests flake8 black ruff
+      - name: Absolute Force-Install NumPy 1.26.4
+        run: |
+          # Upgrade base tools
+          python -m pip install --upgrade pip setuptools wheel
 
-    - name: Run Unit Tests with Coverage
-      run: |
-        pytest --cov=app tests/
-      continue-on-error: false
+          # Uninstall NumPy multiple times to ensure complete removal
+          pip uninstall -y numpy || true
+          pip uninstall -y numpy || true
+          pip uninstall -y numpy || true
 
-    - name: Check Code Coverage
-      run: |
-        coverage report --fail-under=80
+          # Force install the exact version of NumPy ignoring all dependencies
+          pip install --no-cache-dir --ignore-installed "numpy==1.26.4"
 
-    - name: Run Linting with Ruff
-      run: |
-        ruff .
+          # Now install the rest without dependencies
+          pip install --no-cache-dir --no-deps -r requirements.txt
 
-    - name: Check Code Formatting with Black
-      run: |
-        black --check .
+          # Confirm version
+          python -c "import numpy; print('NumPy version:', numpy.__version__)"
+
+      - name: Run Unit Tests with Coverage
+        run: |
+          pytest --cov=app tests/
+
+      - name: Check Code Coverage
+        run: |
+          coverage report --fail-under=80
+
+      - name: Run Linting with Ruff
+        run: |
+          ruff .
+
+      - name: Check Code Formatting with Black
+        run: |
+          black --check .

@@ -78,7 +78,7 @@ def get_orders():
 @app.route('/api/users', methods=['GET'])
 def get_users():
     global users_df
-    return users_df.to_json(orient='records'), 200
+    return jsonify(users_df.to_dict(orient='records')), 200
 
 
 # -------------------------------------------------------------------s-
@@ -213,6 +213,18 @@ def delete_inventory(furniture_id):
     furniture_df.drop(furniture_df.index[furniture_df['id'] == furniture_id], inplace=True)
     save_furniture()
     return jsonify({'message': 'Furniture item deleted'}), 200
+
+
+@app.route('/api/users/<email>', methods=['DELETE'])
+def delete_user(email):
+    global users_df
+    if email not in users_df['email'].values:
+        return jsonify({'error': 'User not found'}), 404
+    # Remove the user from the DataFrame
+    users_df = users_df[users_df['email'] != email]
+    save_users()
+    return jsonify({'message': 'User deleted'}), 200
+
 
 
 # --------------------------------------------------------------------

@@ -1,7 +1,8 @@
 ### Part 1 ###
 
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Tuple, Dict, List, Optional
+
 
 
 # --------------------------------------------------------------------
@@ -9,7 +10,7 @@ from typing import Tuple
 # --------------------------------------------------------------------
 class Furniture(ABC):
     """
-    An abstract base class that represents a general piece of furniture.
+    An abstract base class that represents a general piece of furniture.  
     """
 
     def __init__(
@@ -255,10 +256,6 @@ class Shelf(Furniture):
 
 ### PART 2 ###
 
-from typing import Dict, List
-from furniture import Furniture, Chair, Table, Sofa, Lamp, Shelf
-
-
 class Inventory:
     """
     A Singleton class that manages an inventory of furniture.
@@ -398,7 +395,6 @@ class Inventory:
 ### Pat 3 ###
 
 import hashlib
-from typing import Dict, List, Optional
 
 
 class User:
@@ -564,10 +560,7 @@ class User:
 
 ### Part 4 ###
 
-
 from __future__ import annotations
-from abc import ABC, abstractmethod
-from typing import List, Optional
 
 
 # --------------------------------------------------------------------
@@ -723,10 +716,7 @@ class ShoppingCart:
         return "\n".join(lines)
 
 
-
 ### Part 5 ###
-
-
 class Checkout:
     """
     A Checkout system that handles:
