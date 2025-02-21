@@ -1,1 +1,1 @@
-Class
+print(1)
