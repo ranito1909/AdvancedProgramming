@@ -22,19 +22,24 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies with Constraints
+      - name: Absolute Force-Install NumPy 1.26.4
         run: |
           # Upgrade base tools
           python -m pip install --upgrade pip setuptools wheel
 
-          # Uninstall existing numpy/pandas if present
-          pip uninstall -y numpy pandas || true
+          # Uninstall NumPy multiple times to ensure complete removal
+          pip uninstall -y numpy || true
+          pip uninstall -y numpy || true
+          pip uninstall -y numpy || true
 
-          # Install exactly what you want
-          pip install --no-cache-dir --no-deps "numpy==1.26.4" "pandas==1.5.3"
+          # Force install the exact version of NumPy ignoring all dependencies
+          pip install --no-cache-dir --ignore-installed "numpy==1.26.4"
 
-          # Install the rest using constraints to enforce numpy==1.26.4
-          pip install --no-cache-dir -r requirements.txt -c constraints.txt
+          # Now install the rest without dependencies
+          pip install --no-cache-dir --no-deps -r requirements.txt
+
+          # Confirm version
+          python -c "import numpy; print('NumPy version:', numpy.__version__)"
 
       - name: Run Unit Tests with Coverage
         run: |
