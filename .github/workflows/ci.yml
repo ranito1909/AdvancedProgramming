@@ -22,15 +22,15 @@ jobs:
         with:
           python-version: '3.10'
       
-      - name: Upgrade pip, setuptools, and wheel; Install dependencies
+      - name: Force reinstall pinned numpy/pandas
         run: |
           python -m pip install --upgrade pip setuptools wheel
+          pip uninstall -y numpy pandas
           pip install -r requirements.txt
 
       - name: Run Unit Tests with Coverage
         run: |
           pytest --cov=app tests/
-        continue-on-error: false
 
       - name: Check Code Coverage
         run: |
