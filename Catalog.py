@@ -928,3 +928,4 @@ class Order:
             f"Total Price: {self.total_price:.2f}\n"
             f"Created at: {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
         )
+
