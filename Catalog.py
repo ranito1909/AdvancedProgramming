@@ -668,7 +668,7 @@ class CompositeItem(CartComponent):
 # --------------------------------------------------------------------
 class ShoppingCart:
     """
-    A ShoppingCart that allows users to add or remove items (both simple and composite),
+    A ShoppingCart that allows users to add or remove items,
     view the total price, and apply discounts to individual items or the entire cart.
     """
 
@@ -712,7 +712,6 @@ class ShoppingCart:
     def view_cart(self) -> str:
         """
         Return a string listing the cart components and their prices.
-        (Implementation can be as simple or detailed as you wish.)
         """
         if not self.root._children:
             return "Shopping cart is empty."
