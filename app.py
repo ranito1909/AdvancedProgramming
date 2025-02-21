@@ -76,10 +76,12 @@ def save_users():
 # --------------------------------------------------------------------
 # Before the first request, we load data into memory from pickle files
 # --------------------------------------------------------------------
-@app.before_first_request
+@app.before_request
 def initialize_data():
-    load_inventory()
-    load_users()
+     if not hasattr(app, 'initialized'):
+        load_inventory()
+        load_users()
+        app.initialized = True
 
 
 # --------------------------------------------------------------------
