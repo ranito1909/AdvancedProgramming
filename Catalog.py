@@ -9,7 +9,7 @@ from typing import Tuple
 # --------------------------------------------------------------------
 class Furniture(ABC):
     """
-    An abstract base class that represents a general piece of furniture.
+    An abstract base class that represents a general piece of furniture. 
     """
 
     def __init__(
