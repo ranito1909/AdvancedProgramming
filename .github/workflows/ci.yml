@@ -38,7 +38,7 @@ jobs:
           # Now install the rest without dependencies
           pip install --no-cache-dir --no-deps -r requirements.txt
 
-          # Confirm version
+          # Confirm  version
           python -c "import numpy; print('NumPy version:', numpy.__version__)"
 
       - name: Run Unit Tests with Coverage
