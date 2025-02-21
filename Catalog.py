@@ -721,3 +721,160 @@ class ShoppingCart:
             lines.append(f"- Item: {component}, Price: {component.get_price():.2f}")
         lines.append(f"\nTotal price: {self.get_total_price():.2f}")
         return "\n".join(lines)
+
+
+
+### Part 5 ###
+
+
+from typing import Optional
+
+from user_management import User  # From Part 3 (your User class)
+from inventory import Inventory   # From Part 2
+from shopping_cart import ShoppingCart, LeafItem, CompositeItem, CartComponent  # From Part 4
+
+
+class Checkout:
+    """
+    A Checkout system that handles:
+      - Collecting user info (address, payment method).
+      - Validating the shopping cart against available inventory.
+      - Processing payment (mock implementation).
+      - Finalizing the order (updating inventory, user order history).
+    """
+
+    def __init__(self, user: User, cart: ShoppingCart, inventory: Inventory):
+        """
+        Initialize a Checkout process with a specific user, cart, and inventory.
+
+        :param user: The user who is checking out.
+        :param cart: The user's ShoppingCart (containing a Composite of items).
+        :param inventory: The Inventory instance to validate and update.
+        """
+        self.user = user
+        self.cart = cart
+        self.inventory = inventory
+
+        self.payment_method: Optional[str] = None
+        self.address: Optional[str] = None
+        self.order_finalized = False
+
+    def set_payment_method(self, method: str) -> None:
+        """
+        Set the user's desired payment method (e.g., "Credit Card", "PayPal", etc.).
+
+        :param method: The payment method as a string.
+        """
+        self.payment_method = method
+
+    def set_address(self, address: str) -> None:
+        """
+        Set the shipping or billing address for the order.
+
+        :param address: The address as a string.
+        """
+        self.address = address
+
+    def validate_cart(self) -> bool:
+        """
+        Check that all items in the cart are in stock in the inventory.
+
+        :return: True if the cart is valid (all items in stock), False otherwise.
+        """
+        # Retrieve a flat list of all LeafItems (since composites can contain leaves)
+        leaf_items = self._collect_leaf_items(self.cart.root)
+
+        for item in leaf_items:
+            # For simplicity, assume 'item' is something like LeafItem(name="Chair", unit_price=..., quantity=...)
+            # and that 'item.name' corresponds to a Furniture.name in the Inventory.
+            # You might adapt this if you store references to the actual Furniture objects.
+            
+            # We look up inventory by searching for a furniture that matches 'item.name'.
+            furniture_in_inventory = self._find_furniture_by_name(item.name)
+            if not furniture_in_inventory:
+                return False  # Item not found in inventory at all
+
+            required_qty = item.quantity
+            available_qty = self.inventory.get_quantity(furniture_in_inventory)
+            if required_qty > available_qty:
+                return False  # Not enough in stock
+
+        return True
+
+    def process_payment(self) -> bool:
+        """
+        Mock the payment processing. In a real system, we'd integrate
+        with a payment gateway. Here, we simply return True to indicate success.
+
+        :return: True if payment succeeded, False otherwise.
+        """
+        if not self.payment_method:
+            return False  # No payment method selected
+        # Mocking payment success:
+        return True
+
+    def finalize_order(self) -> bool:
+        """
+        Finalize the order by updating inventory, adding to user history,
+        and marking the order as finalized.
+
+        :return: True if order was finalized successfully, False otherwise.
+        """
+        if self.order_finalized:
+            return False  # Already finalized
+        if not self.validate_cart():
+            return False  # Can't finalize if validation fails
+        if not self.process_payment():
+            return False  # Payment failed
+
+        # Deduct the items from inventory
+        leaf_items = self._collect_leaf_items(self.cart.root)
+        for item in leaf_items:
+            furniture_in_inventory = self._find_furniture_by_name(item.name)
+            if furniture_in_inventory:
+                self.inventory.remove_item(furniture_in_inventory, item.quantity)
+
+        # Record an "order" in the user's history
+        # For simplicity, just store a string with order details.
+        order_summary = (
+            f"Order for {self.user.name}, "
+            f"Items: {[f'{i.name} x {i.quantity}' for i in leaf_items]}, "
+            f"Ship to: {self.address}, "
+            f"Payment via: {self.payment_method}, "
+            f"Total: {self.cart.get_total_price():.2f}"
+        )
+        self.user.add_order(order_summary)
+
+        self.order_finalized = True
+        return True
+
+    # ----------------------------------------------------------------
+    # Helper Methods
+    # ----------------------------------------------------------------
+
+    def _collect_leaf_items(self, component: CartComponent) -> list[LeafItem]:
+        """
+        Recursively collect all LeafItems from a CartComponent tree.
+        """
+        # If it's a leaf, just return it in a list
+        if isinstance(component, LeafItem):
+            return [component]
+
+        # If it's a composite, gather from children
+        if isinstance(component, CompositeItem):
+            result = []
+            for child in component._children:
+                result.extend(self._collect_leaf_items(child))
+            return result
+
+        return []
+
+    def _find_furniture_by_name(self, name: str):
+        """
+        A simple helper to locate a Furniture object in the inventory
+        by matching the 'name' attribute. Returns None if not found.
+        """
+        for furniture_item in self.inventory.items.keys():
+            if furniture_item.name == name:
+                return furniture_item
+        return None
