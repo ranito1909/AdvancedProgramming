@@ -559,3 +559,166 @@ class User:
         :return: The SHA-256 hexadecimal digest of the password.
         """
         return hashlib.sha256(raw_password.encode('utf-8')).hexdigest()
+    
+
+
+### Part 4 ###
+
+
+from __future__ import annotations
+from abc import ABC, abstractmethod
+from typing import List, Optional
+
+
+# --------------------------------------------------------------------
+# Composite Pattern: CartComponent (Abstract Base Class)
+# --------------------------------------------------------------------
+class CartComponent(ABC):
+    """
+    The abstract base class for cart components (both leaves and composites).
+    Each component must implement methods to get its price and apply discounts.
+    """
+
+    @abstractmethod
+    def get_price(self) -> float:
+        """Return the total price for this component."""
+        pass
+
+    @abstractmethod
+    def apply_discount(self, percentage: float) -> None:
+        """
+        Apply a discount to this component (leaf or composite).
+        :param percentage: A value 0-100 representing the discount percentage.
+        """
+        pass
+
+    def add(self, component: CartComponent) -> None:
+        """
+        Optionally implemented by composite items to add child components.
+        By default, leaves raise NotImplementedError.
+        """
+        raise NotImplementedError("This component cannot have children.")
+
+    def remove(self, component: CartComponent) -> None:
+        """
+        Optionally implemented by composite items to remove child components.
+        By default, leaves raise NotImplementedError.
+        """
+        raise NotImplementedError("This component does not support removing children.")
+
+
+# --------------------------------------------------------------------
+# Composite Pattern: LeafItem (e.g., Furniture, Accessory)
+# --------------------------------------------------------------------
+class LeafItem(CartComponent):
+    """
+    Represents a single item in the cart (e.g., a piece of furniture or an accessory).
+    
+    Attributes:
+        name (str): Descriptive name of the item.
+        unit_price (float): The unit price of the item.
+        quantity (int): How many units of this item.
+    """
+
+    def __init__(self, name: str, unit_price: float, quantity: int = 1):
+        self.name = name
+        self.unit_price = unit_price
+        self.quantity = quantity
+        self._current_price = unit_price  # Tracks price after discount
+
+    def get_price(self) -> float:
+        return self._current_price * self.quantity
+
+    def apply_discount(self, percentage: float) -> None:
+        if not (0 <= percentage <= 100):
+            raise ValueError("Discount percentage must be between 0 and 100.")
+        discount_amount = self.unit_price * (percentage / 100)
+        self._current_price = self.unit_price - discount_amount
+
+
+# --------------------------------------------------------------------
+# Composite Pattern: CompositeItem (Optional Bundles or Collections)
+# --------------------------------------------------------------------
+class CompositeItem(CartComponent):
+    """
+    Represents a composite item that can contain multiple CartComponents
+    (both LeafItem and other CompositeItem objects).
+    """
+
+    def __init__(self, name: str):
+        self.name = name
+        self._children: List[CartComponent] = []
+
+    def add(self, component: CartComponent) -> None:
+        self._children.append(component)
+
+    def remove(self, component: CartComponent) -> None:
+        self._children.remove(component)
+
+    def get_price(self) -> float:
+        return sum(child.get_price() for child in self._children)
+
+    def apply_discount(self, percentage: float) -> None:
+        for child in self._children:
+            child.apply_discount(percentage)
+
+
+# --------------------------------------------------------------------
+# ShoppingCart (Uses Composite Pattern for Different Item Types)
+# --------------------------------------------------------------------
+class ShoppingCart:
+    """
+    A ShoppingCart that allows users to add or remove items (both simple and composite),
+    view the total price, and apply discounts to individual items or the entire cart.
+    """
+
+    def __init__(self, name: str = "ShoppingCart"):
+        # Root composite to store all cart components
+        self.root = CompositeItem(name=name)
+
+    def add_item(self, item: CartComponent) -> None:
+        """
+        Add a cart component (leaf or composite) to the shopping cart.
+        :param item: A CartComponent object to add.
+        """
+        self.root.add(item)
+
+    def remove_item(self, item: CartComponent) -> None:
+        """
+        Remove a specific component (leaf or composite) from the cart.
+        :param item: The CartComponent to remove.
+        """
+        self.root.remove(item)
+
+    def get_total_price(self) -> float:
+        """
+        Return the total price of all items in the cart.
+        """
+        return self.root.get_price()
+
+    def apply_discount(self, percentage: float, target: Optional[CartComponent] = None) -> None:
+        """
+        Apply a discount to the entire cart or a specific component.
+        
+        :param percentage: A float 0-100 representing the discount percentage.
+        :param target: If provided, apply discount only to this component; otherwise,
+                       apply to the entire cart.
+        """
+        if target is not None:
+            target.apply_discount(percentage)
+        else:
+            self.root.apply_discount(percentage)
+
+    def view_cart(self) -> str:
+        """
+        Return a string listing the cart components and their prices.
+        (Implementation can be as simple or detailed as you wish.)
+        """
+        if not self.root._children:
+            return "Shopping cart is empty."
+
+        lines = [f"Cart '{self.root.name}' contents:\n"]
+        for component in self.root._children:
+            lines.append(f"- Item: {component}, Price: {component.get_price():.2f}")
+        lines.append(f"\nTotal price: {self.get_total_price():.2f}")
+        return "\n".join(lines)
