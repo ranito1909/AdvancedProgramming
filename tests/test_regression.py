@@ -1,8 +1,4 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import pytest
-@pytest.fixture
+# tests/regresstion.py
 def test_order_updates_user_history(client):
     # Register a new user
     client.post('/api/users', json={
