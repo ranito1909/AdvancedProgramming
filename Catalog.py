@@ -54,7 +54,6 @@ class Furniture(ABC):
     def check_availability(self) -> bool:
         """
         Check if this piece of furniture is in stock. 
-        For now, return True or False as a placeholder.
         """
         pass
 
@@ -92,9 +91,9 @@ class Chair(Furniture):
         self.price *= (1 + tax_rate)
 
     def check_availability(self) -> bool:
-        # Temporary implementation returning True; 
-        # will be extended in the future with actual inventory checks.
-        return True
+        """Check if this piece of furniture is in stock in the Inventory."""
+        inventory = Inventory.get_instance()
+        return inventory.items.get(self, 0) > 0  # Returns True if stock > 0
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -131,8 +130,9 @@ class Table(Furniture):
         self.price *= (1 + tax_rate)
 
     def check_availability(self) -> bool:
-        # Temporary implementation returning True.
-        return True
+        """Check if this piece of furniture is in stock in the Inventory."""
+        inventory = Inventory.get_instance()
+        return inventory.items.get(self, 0) > 0  # Returns True if stock > 0
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -169,8 +169,9 @@ class Sofa(Furniture):
         self.price *= (1 + tax_rate)
 
     def check_availability(self) -> bool:
-        # Temporary implementation returning True.
-        return True
+        """Check if this piece of furniture is in stock in the Inventory."""
+        inventory = Inventory.get_instance()
+        return inventory.items.get(self, 0) > 0  # Returns True if stock > 0
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -207,8 +208,9 @@ class Lamp(Furniture):
         self.price *= (1 + tax_rate)
 
     def check_availability(self) -> bool:
-        # Temporary implementation returning True.
-        return True
+        """Check if this piece of furniture is in stock in the Inventory."""
+        inventory = Inventory.get_instance()
+        return inventory.items.get(self, 0) > 0  # Returns True if stock > 0
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -245,8 +247,9 @@ class Shelf(Furniture):
         self.price *= (1 + tax_rate)
 
     def check_availability(self) -> bool:
-        # Temporary implementation returning True.
-        return True
+        """Check if this piece of furniture is in stock in the Inventory."""
+        inventory = Inventory.get_instance()
+        return inventory.items.get(self, 0) > 0  # Returns True if stock > 0
 
     def __str__(self) -> str:
         base_str = super().__str__()
