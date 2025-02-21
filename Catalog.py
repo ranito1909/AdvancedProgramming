@@ -1,7 +1,12 @@
-### Part 1 ###
-
+from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Optional
+import hashlib
+from enum import Enum
+from datetime import datetime
+
+
+### Part 1 ### 
 
 
 # --------------------------------------------------------------------
@@ -9,7 +14,9 @@ from typing import Tuple, Dict, List
 # --------------------------------------------------------------------
 class Furniture(ABC):
     """
-    An abstract base class that represents a general piece of furniture.  
+    An abstract base class that represents a general piece of furniture.
+    This class enforces certain methods (apply_discount, apply_tax, check_availability)
+    that concrete furniture classes must implement.
     """
 
     def __init__(
@@ -17,15 +24,15 @@ class Furniture(ABC):
         name: str,
         description: str,
         price: float,
-        dimensions: Tuple[float, ...]
-    ):
+        dimensions: Tuple[float, ...],
+    ) -> None:
         """
         Initialize a piece of furniture.
 
         :param name: The name of the furniture.
         :param description: A short description of the furniture.
         :param price: The base price of the furniture (before any discounts/taxes).
-        :param dimensions: A tuple representing the dimensions of the furniture 
+        :param dimensions: A tuple representing the dimensions of the furniture
                            (e.g., width, depth, height).
         """
         self.name = name
@@ -36,28 +43,29 @@ class Furniture(ABC):
     @abstractmethod
     def apply_discount(self, percentage: float) -> None:
         """
-        Apply a discount to the price. 
+        Apply a discount to the price.
         The percentage parameter is a number between 0 and 100.
         """
-        pass
 
     @abstractmethod
     def apply_tax(self, tax_rate: float) -> None:
         """
-        Apply a tax (e.g., VAT) to the price. 
+        Apply a tax (e.g., VAT) to the price.
         For instance, a tax_rate of 0.17 represents 17% tax.
         """
-        pass
 
     @abstractmethod
     def check_availability(self) -> bool:
         """
-        Check if this piece of furniture is in stock. 
-        For now, return True or False as a placeholder.
+        Check if this piece of furniture is in stock.
+        In the child classes, we actually look at the Inventory to see availability.
         """
-        pass
 
     def __str__(self) -> str:
+        """
+        Provide a string representation of the furniture item, typically
+        showing its name, description, and price.
+        """
         return f"{self.name} ({self.description}): {self.price:.2f} ₪"
 
 
@@ -78,28 +86,46 @@ class Chair(Furniture):
         description: str,
         price: float,
         dimensions: Tuple[float, ...],
-        cushion_material: str
-    ):
+        cushion_material: str,
+    ) -> None:
+        """
+        Initialize the Chair with its additional cushion material property.
+
+        :param name: The name of the furniture (chair).
+        :param description: A short description.
+        :param price: The base price.
+        :param dimensions: Dimensions tuple (e.g., width, depth, height).
+        :param cushion_material: The material used for the chair's cushion.
+        """
         super().__init__(name, description, price, dimensions)
         self.cushion_material = cushion_material
 
     def apply_discount(self, percentage: float) -> None:
+        """
+        Subtract a specified percentage from the chair's current price.
+        """
         discount_amount = self.price * (percentage / 100)
-        
-        # Another implementation could be as following:
-        # self.price = self.price * (1 - (precentage / 100))
-
         self.price -= discount_amount
 
     def apply_tax(self, tax_rate: float) -> None:
-        self.price *= (1 + tax_rate)
+        """
+        Add tax to the current chair price using the provided tax_rate.
+        Example: tax_rate=0.17 => 17% tax.
+        """
+        self.price *= 1 + tax_rate
 
     def check_availability(self) -> bool:
-        # Temporary implementation returning True; 
-        # will be extended in the future with actual inventory checks.
-        return True
+        """
+        Check if this piece of furniture is in stock in the Inventory.
+        We retrieve the singleton Inventory and see if quantity > 0.
+        """
+        inventory = Inventory.get_instance()
+        return inventory.items.get(self, 0) > 0
 
     def __str__(self) -> str:
+        """
+        Extend the base string representation with cushion material details.
+        """
         base_str = super().__str__()
         return f"{base_str}, Cushion Material: {self.cushion_material}"
 
@@ -121,24 +147,44 @@ class Table(Furniture):
         description: str,
         price: float,
         dimensions: Tuple[float, ...],
-        frame_material: str
-    ):
+        frame_material: str,
+    ) -> None:
+        """
+        Initialize the Table with its frame material.
+
+        :param name: The table's name.
+        :param description: Short description.
+        :param price: The base price of the table.
+        :param dimensions: Dimensions (width, depth, height, etc.).
+        :param frame_material: Type of frame material.
+        """
         super().__init__(name, description, price, dimensions)
         self.frame_material = frame_material
 
     def apply_discount(self, percentage: float) -> None:
+        """
+        Reduce the table price by the specified percentage discount.
+        """
         discount_amount = self.price * (percentage / 100)
         self.price -= discount_amount
-        
 
     def apply_tax(self, tax_rate: float) -> None:
-        self.price *= (1 + tax_rate)
+        """
+        Increase the table price by multiplying with (1 + tax_rate).
+        """
+        self.price *= 1 + tax_rate
 
     def check_availability(self) -> bool:
-        # Temporary implementation returning True.
-        return True
+        """
+        Check if this table is in stock in the Inventory.
+        """
+        inventory = Inventory.get_instance()
+        return inventory.items.get(self, 0) > 0
 
     def __str__(self) -> str:
+        """
+        Extend the base string representation with frame material details.
+        """
         base_str = super().__str__()
         return f"{base_str}, Frame Material: {self.frame_material}"
 
@@ -160,23 +206,44 @@ class Sofa(Furniture):
         description: str,
         price: float,
         dimensions: Tuple[float, ...],
-        capacity: int
-    ):
+        capacity: int,
+    ) -> None:
+        """
+        Initialize the Sofa with a capacity.
+
+        :param name: Name of the sofa.
+        :param description: Short description.
+        :param price: Base price.
+        :param dimensions: Dimensions.
+        :param capacity: How many people can sit on this sofa.
+        """
         super().__init__(name, description, price, dimensions)
         self.capacity = capacity
 
     def apply_discount(self, percentage: float) -> None:
+        """
+        Reduce the sofa price by the given discount percentage.
+        """
         discount_amount = self.price * (percentage / 100)
         self.price -= discount_amount
 
     def apply_tax(self, tax_rate: float) -> None:
-        self.price *= (1 + tax_rate)
+        """
+        Increase the sofa price by applying the given tax rate.
+        """
+        self.price *= 1 + tax_rate
 
     def check_availability(self) -> bool:
-        # Temporary implementation returning True.
-        return True
+        """
+        Check if this sofa is in stock in the Inventory.
+        """
+        inventory = Inventory.get_instance()
+        return inventory.items.get(self, 0) > 0
 
     def __str__(self) -> str:
+        """
+        Extend the base string with capacity details.
+        """
         base_str = super().__str__()
         return f"{base_str}, Capacity: {self.capacity}"
 
@@ -198,23 +265,44 @@ class Lamp(Furniture):
         description: str,
         price: float,
         dimensions: Tuple[float, ...],
-        light_source: str
-    ):
+        light_source: str,
+    ) -> None:
+        """
+        Initialize the Lamp with a light_source attribute.
+
+        :param name: Lamp name.
+        :param description: Short description.
+        :param price: Base price.
+        :param dimensions: Dimensions.
+        :param light_source: Type of light (e.g., LED, fluorescent).
+        """
         super().__init__(name, description, price, dimensions)
         self.light_source = light_source
 
     def apply_discount(self, percentage: float) -> None:
+        """
+        Reduce the lamp price by the given percentage.
+        """
         discount_amount = self.price * (percentage / 100)
         self.price -= discount_amount
 
     def apply_tax(self, tax_rate: float) -> None:
-        self.price *= (1 + tax_rate)
+        """
+        Increase the lamp price by multiplying with (1 + tax_rate).
+        """
+        self.price *= 1 + tax_rate
 
     def check_availability(self) -> bool:
-        # Temporary implementation returning True.
-        return True
+        """
+        Check if this lamp is in stock in the Inventory.
+        """
+        inventory = Inventory.get_instance()
+        return inventory.items.get(self, 0) > 0
 
     def __str__(self) -> str:
+        """
+        Extend the base string with light source info.
+        """
         base_str = super().__str__()
         return f"{base_str}, Light Source: {self.light_source}"
 
@@ -236,35 +324,50 @@ class Shelf(Furniture):
         description: str,
         price: float,
         dimensions: Tuple[float, ...],
-        wall_mounted: bool
-    ):
+        wall_mounted: bool,
+    ) -> None:
+        """
+        Initialize the Shelf with wall_mounted property.
+
+        :param name: Shelf name.
+        :param description: Short description.
+        :param price: Base price.
+        :param dimensions: Dimensions.
+        :param wall_mounted: True if shelf mounts to a wall.
+        """
         super().__init__(name, description, price, dimensions)
         self.wall_mounted = wall_mounted
 
     def apply_discount(self, percentage: float) -> None:
+        """
+        Reduce the shelf price by the discount percentage.
+        """
         discount_amount = self.price * (percentage / 100)
         self.price -= discount_amount
 
     def apply_tax(self, tax_rate: float) -> None:
-        self.price *= (1 + tax_rate)
+        """
+        Increase the shelf price based on the tax rate.
+        """
+        self.price *= 1 + tax_rate
 
     def check_availability(self) -> bool:
-        # Temporary implementation returning True.
-        ''' possible implementation:
-         inventory = Inventory()
-         if self.name not in inventory.search(self.name):
-           return False
-         return True
-        '''
-        return True
+        """
+        Check if this shelf is in stock in the Inventory.
+        """
+        inventory = Inventory.get_instance()
+        return inventory.items.get(self, 0) > 0
 
     def __str__(self) -> str:
+        """
+        Extend the base string with wall-mounted info.
+        """
         base_str = super().__str__()
         return f"{base_str}, Wall Mounted: {self.wall_mounted}"
-    
 
 
 ### PART 2 ###
+
 
 class Inventory:
     """
@@ -274,13 +377,12 @@ class Inventory:
 
     _instance = None  # Static variable to hold the single instance of the class
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the data structure for the inventory:
         - items: a dictionary mapping a Furniture object to the quantity in stock.
         """
         if Inventory._instance is not None:
-            # Prevent creating another instance of a Singleton
             raise Exception(
                 "Inventory is a singleton class. Use Inventory.get_instance() instead."
             )
@@ -288,7 +390,7 @@ class Inventory:
         Inventory._instance = self
 
     @staticmethod
-    def get_instance():
+    def get_instance() -> "Inventory":
         """
         Return the existing instance of the class or create a new one if it doesn't exist.
         """
@@ -302,7 +404,7 @@ class Inventory:
 
     def add_item(self, furniture: Furniture, quantity: int = 1) -> None:
         """
-        Add a furniture item to the inventory. 
+        Add a furniture item to the inventory.
         If the item already exists, update its quantity.
 
         :param furniture: The furniture object to add.
@@ -313,17 +415,15 @@ class Inventory:
         else:
             self.items[furniture] = quantity
 
-        # Another way to implement this would be like this:
-        # self.items[furniture] = self.items.get(furniture, 0) + quantity
-
     def remove_item(self, furniture: Furniture, quantity: int = 1) -> bool:
         """
-        Remove a certain quantity of the item from the inventory. 
+        Remove a certain quantity of the item from the inventory.
         If the quantity reaches zero, remove it completely.
 
         :param furniture: The furniture object to remove.
         :param quantity: The number of units to remove (default is 1).
-        :return: True if removal succeeded, False if it failed (e.g., not enough in stock).
+        :return: True if removal succeeded, False if it failed
+                 (e.g., not enough in stock).
         """
         if furniture not in self.items:
             return False
@@ -342,7 +442,8 @@ class Inventory:
 
         :param furniture: The furniture object to update.
         :param new_quantity: The new quantity.
-        :return: True if the update was successful, False if the furniture isn't in the inventory.
+        :return: True if the update was successful,
+                 False if the furniture isn't in the inventory.
         """
         if furniture not in self.items:
             return False
@@ -355,16 +456,15 @@ class Inventory:
     # ----------------------------------------------------------------
     # Search Method
     # ----------------------------------------------------------------
-
-    from typing import List, Optional, Type
+    from typing import List as _List, Optional as _Optional, Type as _Type
 
     def search(
         self,
-        name_substring: Optional[str] = None,
-        min_price: Optional[float] = None,
-        max_price: Optional[float] = None,
-        furniture_type: Optional[Type] = None
-    ) -> List["Furniture"]:
+        name_substring: _Optional[str] = None,
+        min_price: _Optional[float] = None,
+        max_price: _Optional[float] = None,
+        furniture_type: _Optional[_Type] = None,
+    ) -> _List["Furniture"]:
         """
         Perform a flexible search across all furniture items in the inventory.
 
@@ -374,63 +474,48 @@ class Inventory:
         - Furniture type (class).
 
         :param name_substring: Text to search for in the furniture name (case-insensitive).
-        :param min_price: The minimum price. If None, no lower-bound price check is performed.
-        :param max_price: The maximum price. If None, no upper-bound price check is performed.
-        :param furniture_type: The class of the furniture (e.g., Chair, Table). If None,
-                            no type check is performed.
+        :param min_price: The minimum price. If None, no lower-bound check is performed.
+        :param max_price: The maximum price. If None, no upper-bound check is performed.
+        :param furniture_type: The class of the furniture (Chair, Table, etc.).
         :return: A list of Furniture objects matching all specified criteria.
         """
         results = []
 
         for furniture_item in self.items.keys():
-            # 1. Check name substring, if provided
+            # 1. Check name substring
             if name_substring is not None:
                 if name_substring.lower() not in furniture_item.name.lower():
-                    continue  # Doesn't match this filter, skip
+                    continue
 
-            # 2. Check price range, if provided
-            if (min_price is not None and furniture_item.price < min_price) or \
-            (max_price is not None and furniture_item.price > max_price):
-                continue  # Price out of range, skip
+            # 2. Check price range
+            if min_price is not None and furniture_item.price < min_price:
+                continue
+            if max_price is not None and furniture_item.price > max_price:
+                continue
 
-            # 3. Check furniture type, if provided
+            # 3. Check furniture type
             if furniture_type is not None:
                 if not isinstance(furniture_item, furniture_type):
-                    continue  # Wrong type, skip
+                    continue
 
-            # If all filters passed (or were not provided), add to results
+            # Passed all filters
             results.append(furniture_item)
 
         return results
-    
 
 
-### Part 3 ###
-
-import hashlib
-from typing import Dict, List, Optional
+### Pat 3 ###
 
 
 class User:
     """
-    A class that show both the 'User' data model and the user management system.
+    A class that shows both the 'User' data model and the user management system.
 
     This class includes:
       - Instance-level attributes and methods for a single user
         (name, email, password_hash, address, etc.).
       - Class-level data structures and methods for managing multiple
         users (register, login, retrieve, delete, etc.).
-
-    Attributes (instance-level):
-        name (str): The user's name.
-        email (str): The user's unique email address (identifier).
-        password_hash (str): The hashed password for authentication.
-        address (str): The user's address (optional).
-        order_history (List[str]): A list containing details about past orders.
-
-    Attributes (class-level):
-        _users (Dict[str, User]): A dictionary storing all user objects,
-                                  keyed by email.
     """
 
     _users: Dict[str, "User"] = {}
@@ -441,8 +526,8 @@ class User:
         email: str,
         password_hash: str,
         address: str = "",
-        order_history: Optional[List[str]] = None
-    ):
+        order_history: Optional[List[str]] = None,
+    ) -> None:
         """
         Initialize a User instance.
 
@@ -461,9 +546,10 @@ class User:
     # ----------------------------------------------------------------
     # Class-Level Methods (User Management)
     # ----------------------------------------------------------------
-
     @classmethod
-    def register_user(cls, name: str, email: str, raw_password: str, address: str = "") -> "User":
+    def register_user(
+        cls, name: str, email: str, raw_password: str, address: str = ""
+    ) -> "User":
         """
         Register a new user with the provided details.
 
@@ -522,7 +608,6 @@ class User:
     # ----------------------------------------------------------------
     # Instance-Level Methods (Per-User Functionality)
     # ----------------------------------------------------------------
-
     def set_password(self, raw_password: str) -> None:
         """
         Set (or reset) the user's password by hashing it.
@@ -540,7 +625,9 @@ class User:
         """
         return self._hash_password(raw_password) == self.password_hash
 
-    def update_profile(self, name: Optional[str] = None, address: Optional[str] = None) -> None:
+    def update_profile(
+        self, name: Optional[str] = None, address: Optional[str] = None
+    ) -> None:
         """
         Update the user's profile information (e.g., name and address).
 
@@ -568,16 +655,10 @@ class User:
         :param raw_password: The plain-text password to hash.
         :return: The SHA-256 hexadecimal digest of the password.
         """
-        return hashlib.sha256(raw_password.encode('utf-8')).hexdigest()
-    
+        return hashlib.sha256(raw_password.encode("utf-8")).hexdigest()
 
 
 ### Part 4 ###
-
-
-from __future__ import annotations
-from abc import ABC, abstractmethod
-from typing import List, Optional
 
 
 # --------------------------------------------------------------------
@@ -591,8 +672,9 @@ class CartComponent(ABC):
 
     @abstractmethod
     def get_price(self) -> float:
-        """Return the total price for this component."""
-        pass
+        """
+        Return the total price for this component.
+        """
 
     @abstractmethod
     def apply_discount(self, percentage: float) -> None:
@@ -600,7 +682,6 @@ class CartComponent(ABC):
         Apply a discount to this component (leaf or composite).
         :param percentage: A value 0-100 representing the discount percentage.
         """
-        pass
 
     def add(self, component: CartComponent) -> None:
         """
@@ -623,27 +704,49 @@ class CartComponent(ABC):
 class LeafItem(CartComponent):
     """
     Represents a single item in the cart (e.g., a piece of furniture or an accessory).
-    
+
     Attributes:
         name (str): Descriptive name of the item.
         unit_price (float): The unit price of the item.
         quantity (int): How many units of this item.
     """
 
-    def __init__(self, name: str, unit_price: float, quantity: int = 1):
+    def __init__(self, name: str, unit_price: float, quantity: int = 1) -> None:
+        """
+        Initialize a leaf item with name, unit price, and quantity.
+
+        :param name: The name/identifier of the item (e.g., "Chair").
+        :param unit_price: The base price of one unit of this item.
+        :param quantity: How many units are being purchased.
+        """
         self.name = name
         self.unit_price = unit_price
         self.quantity = quantity
         self._current_price = unit_price  # Tracks price after discount
 
     def get_price(self) -> float:
+        """
+        Calculate the total price based on current (possibly discounted) price * quantity.
+        """
         return self._current_price * self.quantity
 
     def apply_discount(self, percentage: float) -> None:
+        """
+        Reduce the item price by the specified discount percentage (0-100).
+        This only affects future calculations since it modifies _current_price.
+        """
         if not (0 <= percentage <= 100):
             raise ValueError("Discount percentage must be between 0 and 100.")
         discount_amount = self.unit_price * (percentage / 100)
         self._current_price = self.unit_price - discount_amount
+
+    def __str__(self) -> str:
+        """
+        String representation to easily see name, price, and quantity.
+        """
+        return (
+            f"LeafItem({self.name}, Price={self.unit_price:.2f}, Qty={self.quantity})"
+        )
 
 
 # --------------------------------------------------------------------
@@ -655,22 +758,45 @@ class CompositeItem(CartComponent):
     (both LeafItem and other CompositeItem objects).
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
+        """
+        Initialize the composite with a name and an internal list of children.
+
+        :param name: A label or identifier for this group of items (e.g., "Bundle A").
+        """
         self.name = name
         self._children: List[CartComponent] = []
 
     def add(self, component: CartComponent) -> None:
+        """
+        Add a CartComponent (leaf or composite) as a child.
+        """
         self._children.append(component)
 
     def remove(self, component: CartComponent) -> None:
+        """
+        Remove a child component from the composite.
+        """
         self._children.remove(component)
 
     def get_price(self) -> float:
+        """
+        Sum up the prices of all child components.
+        """
         return sum(child.get_price() for child in self._children)
 
     def apply_discount(self, percentage: float) -> None:
+        """
+        Apply a discount to every child component in this composite.
+        """
         for child in self._children:
             child.apply_discount(percentage)
+
+    def __str__(self) -> str:
+        """
+        Indicate this is a composite item, plus how many child components it has.
+        """
+        return f"CompositeItem({self.name}, children={len(self._children)})"
 
 
 # --------------------------------------------------------------------
@@ -682,13 +808,17 @@ class ShoppingCart:
     view the total price, and apply discounts to individual items or the entire cart.
     """
 
-    def __init__(self, name: str = "ShoppingCart"):
-        # Root composite to store all cart components
+    def __init__(self, name: str = "ShoppingCart") -> None:
+        """
+        Initialize the ShoppingCart with a root CompositeItem.
+        :param name: The name/title of the cart (optional).
+        """
         self.root = CompositeItem(name=name)
 
     def add_item(self, item: CartComponent) -> None:
         """
         Add a cart component (leaf or composite) to the shopping cart.
+
         :param item: A CartComponent object to add.
         """
         self.root.add(item)
@@ -696,6 +826,7 @@ class ShoppingCart:
     def remove_item(self, item: CartComponent) -> None:
         """
         Remove a specific component (leaf or composite) from the cart.
+
         :param item: The CartComponent to remove.
         """
         self.root.remove(item)
@@ -706,10 +837,12 @@ class ShoppingCart:
         """
         return self.root.get_price()
 
-    def apply_discount(self, percentage: float, target: Optional[CartComponent] = None) -> None:
+    def apply_discount(
+        self, percentage: float, target: Optional[CartComponent] = None
+    ) -> None:
         """
         Apply a discount to the entire cart or a specific component.
-        
+
         :param percentage: A float 0-100 representing the discount percentage.
         :param target: If provided, apply discount only to this component; otherwise,
                        apply to the entire cart.
@@ -733,15 +866,7 @@ class ShoppingCart:
         return "\n".join(lines)
 
 
-
 ### Part 5 ###
-
-
-from typing import Optional
-
-from user_management import User  # From Part 3 (your User class)
-from inventory import Inventory   # From Part 2
-from shopping_cart import ShoppingCart, LeafItem, CompositeItem, CartComponent  # From Part 4
 
 
 class Checkout:
@@ -753,7 +878,7 @@ class Checkout:
       - Finalizing the order (updating inventory, user order history).
     """
 
-    def __init__(self, user: User, cart: ShoppingCart, inventory: Inventory):
+    def __init__(self, user: User, cart: ShoppingCart, inventory: Inventory) -> None:
         """
         Initialize a Checkout process with a specific user, cart, and inventory.
 
@@ -791,23 +916,18 @@ class Checkout:
 
         :return: True if the cart is valid (all items in stock), False otherwise.
         """
-        # Retrieve a flat list of all LeafItems (since composites can contain leaves)
         leaf_items = self._collect_leaf_items(self.cart.root)
 
         for item in leaf_items:
-            # For simplicity, assume 'item' is something like LeafItem(name="Chair", unit_price=..., quantity=...)
-            # and that 'item.name' corresponds to a Furniture.name in the Inventory.
-            # You might adapt this if you store references to the actual Furniture objects.
-            
             # We look up inventory by searching for a furniture that matches 'item.name'.
             furniture_in_inventory = self._find_furniture_by_name(item.name)
             if not furniture_in_inventory:
-                return False  # Item not found in inventory at all
+                return False
 
             required_qty = item.quantity
             available_qty = self.inventory.get_quantity(furniture_in_inventory)
             if required_qty > available_qty:
-                return False  # Not enough in stock
+                return False
 
         return True
 
@@ -819,8 +939,7 @@ class Checkout:
         :return: True if payment succeeded, False otherwise.
         """
         if not self.payment_method:
-            return False  # No payment method selected
-        # Mocking payment success:
+            return False
         return True
 
     def finalize_order(self) -> bool:
@@ -831,21 +950,18 @@ class Checkout:
         :return: True if order was finalized successfully, False otherwise.
         """
         if self.order_finalized:
-            return False  # Already finalized
+            return False
         if not self.validate_cart():
-            return False  # Can't finalize if validation fails
+            return False
         if not self.process_payment():
-            return False  # Payment failed
+            return False
 
-        # Deduct the items from inventory
         leaf_items = self._collect_leaf_items(self.cart.root)
         for item in leaf_items:
             furniture_in_inventory = self._find_furniture_by_name(item.name)
             if furniture_in_inventory:
                 self.inventory.remove_item(furniture_in_inventory, item.quantity)
 
-        # Record an "order" in the user's history
-        # For simplicity, just store a string with order details.
         order_summary = (
             f"Order for {self.user.name}, "
             f"Items: {[f'{i.name} x {i.quantity}' for i in leaf_items]}, "
@@ -861,16 +977,13 @@ class Checkout:
     # ----------------------------------------------------------------
     # Helper Methods
     # ----------------------------------------------------------------
-
-    def _collect_leaf_items(self, component: CartComponent) -> list[LeafItem]:
+    def _collect_leaf_items(self, component: CartComponent) -> List[LeafItem]:
         """
         Recursively collect all LeafItems from a CartComponent tree.
         """
-        # If it's a leaf, just return it in a list
         if isinstance(component, LeafItem):
             return [component]
 
-        # If it's a composite, gather from children
         if isinstance(component, CompositeItem):
             result = []
             for child in component._children:
@@ -879,7 +992,7 @@ class Checkout:
 
         return []
 
-    def _find_furniture_by_name(self, name: str):
+    def _find_furniture_by_name(self, name: str) -> Optional[Furniture]:
         """
         A simple helper to locate a Furniture object in the inventory
         by matching the 'name' attribute. Returns None if not found.
@@ -889,3 +1002,75 @@ class Checkout:
                 return furniture_item
         return None
 
+
+### Part 6 ###
+
+
+class OrderStatus(Enum):
+    """
+    Enum for various statuses an order can have.
+    Possible values: PENDING, SHIPPED, DELIVERED, CANCELED.
+    """
+
+    PENDING = "pending"
+    SHIPPED = "shipped"
+    DELIVERED = "delivered"
+    CANCELED = "canceled"
+
+
+class Order:
+    """
+    Represents a single purchase/order made by a user.
+
+    Attributes:
+        user: The user who placed the order.
+        items: A list of items purchased (e.g., LeafItem objects).
+        total_price: The total cost of all items at checkout time.
+        status: Current status of the order (pending, shipped, etc.).
+        created_at: A timestamp indicating when the order was created.
+    """
+
+    def __init__(
+        self,
+        user: User,
+        items: List[LeafItem],
+        total_price: float,
+        status: OrderStatus = OrderStatus.PENDING,
+    ) -> None:
+        """
+        Initialize an Order object.
+
+        :param user: The user who placed the order.
+        :param items: A list of LeafItem objects representing purchased goods.
+        :param total_price: The total cost for the order at checkout time.
+        :param status: The current status of the order, defaults to PENDING.
+        """
+        self.user = user
+        self.items = items
+        self.total_price = total_price
+        self.status = status
+        self.created_at = datetime.now()
+
+    def set_status(self, new_status: OrderStatus) -> None:
+        """
+        Update the status of the order (e.g., from pending to shipped).
+        """
+        self.status = new_status
+
+    def get_status(self) -> OrderStatus:
+        """
+        Return the current status of the order.
+        """
+        return self.status
+
+    def __str__(self) -> str:
+        """
+        Provide a string representation of the order details.
+        """
+        item_descriptions = ", ".join(f"{i.name} x {i.quantity}" for i in self.items)
+        return (
+            f"Order for {self.user.name} | Status: {self.status.value}\n"
+            f"Items: {item_descriptions}\n"
+            f"Total Price: {self.total_price:.2f}\n"
+            f"Created at: {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        )

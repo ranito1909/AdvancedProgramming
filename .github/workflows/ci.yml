@@ -21,12 +21,28 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      
-      - name: Force reinstall pinned numpy/pandas
+
+      - name: Force Downgrade NumPy to 1.24.3 and install dependencies
         run: |
+          # Upgrade pip, setuptools, wheel
           python -m pip install --upgrade pip setuptools wheel
-          pip uninstall -y numpy pandas
-          pip install -r requirements.txt
+          
+          # Uninstall any existing numpy and pandas to ensure a clean state
+          pip uninstall -y numpy pandas || true
+          
+          # Force install the exact versions you need
+          pip install --no-cache-dir --ignore-installed "numpy==1.24.3" "pandas==1.5.3"
+          
+          # Install all requirements (make sure your requirements.txt is updated)
+          pip install --no-cache-dir -r requirements.txt
+
+          # Install additional tools like ruff and black if not in requirements.txt
+          pip install ruff black
+
+          # Confirm installed versions (optional)
+          python -c "import numpy; print('NumPy version:', numpy.__version__)"
+          python -c "import pandas; print('Pandas version:', pandas.__version__)"
+          python -c "import ruff; print('Ruff version:', ruff.__version__)" || echo "Ruff not installed"
 
       - name: Run Unit Tests with Coverage
         run: |
@@ -38,8 +54,9 @@ jobs:
 
       - name: Run Linting with Ruff
         run: |
-          ruff .
+          ruff check .
 
       - name: Check Code Formatting with Black
         run: |
+          black .
           black --check .
