@@ -22,11 +22,20 @@ jobs:
         with:
           python-version: '3.10'
       
-      - name: Force reinstall pinned numpy/pandas
+      - name: Force pinned NumPy and pandas, then install the rest
         run: |
+          # Upgrade pip/setuptools/wheel
           python -m pip install --upgrade pip setuptools wheel
-          pip uninstall -y numpy pandas
-          pip install -r requirements.txt
+          
+          # Uninstall existing numpy/pandas if present
+          pip uninstall -y numpy pandas || true
+          
+          # Force-install your pinned NumPy and pandas without dependencies
+          pip install --no-cache-dir --no-deps numpy==1.26.4 pandas==1.5.3
+          
+          # Now install everything from requirements.txt, again ignoring deps
+          # to avoid overwriting pinned versions
+          pip install --no-cache-dir --no-deps -r requirements.txt
 
       - name: Run Unit Tests with Coverage
         run: |
