@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Force pinned NumPy and Pandas versions
+      - name: Install Dependencies with Constraints
         run: |
           # Upgrade base tools
           python -m pip install --upgrade pip setuptools wheel
@@ -30,16 +30,15 @@ jobs:
           # Uninstall existing numpy/pandas if present
           pip uninstall -y numpy pandas || true
 
-          # Force install specific versions without dependencies
+          # Install exactly what you want
           pip install --no-cache-dir --no-deps "numpy==1.26.4" "pandas==1.5.3"
 
-          # Now install everything else from requirements.txt, ignoring deps
-          pip install --no-cache-dir --no-deps -r requirements.txt
+          # Install the rest using constraints to enforce numpy==1.26.4
+          pip install --no-cache-dir -r requirements.txt -c constraints.txt
 
       - name: Run Unit Tests with Coverage
         run: |
           pytest --cov=app tests/
-
 
       - name: Check Code Coverage
         run: |
