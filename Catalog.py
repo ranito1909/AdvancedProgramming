@@ -85,6 +85,10 @@ class Chair(Furniture):
 
     def apply_discount(self, percentage: float) -> None:
         discount_amount = self.price * (percentage / 100)
+        
+        # Another implementation could be as following:
+        # self.price = self.price * (1 - (precentage / 100))
+
         self.price -= discount_amount
 
     def apply_tax(self, tax_rate: float) -> None:
@@ -125,6 +129,7 @@ class Table(Furniture):
     def apply_discount(self, percentage: float) -> None:
         discount_amount = self.price * (percentage / 100)
         self.price -= discount_amount
+        
 
     def apply_tax(self, tax_rate: float) -> None:
         self.price *= (1 + tax_rate)
@@ -245,6 +250,12 @@ class Shelf(Furniture):
 
     def check_availability(self) -> bool:
         # Temporary implementation returning True.
+        ''' possible implementation:
+         inventory = Inventory()
+         if self.name not in inventory.search(self.name):
+           return False
+         return True
+        '''
         return True
 
     def __str__(self) -> str:
@@ -301,6 +312,9 @@ class Inventory:
             self.items[furniture] += quantity
         else:
             self.items[furniture] = quantity
+
+        # Another way to implement this would be like this:
+        # self.items[furniture] = self.items.get(furniture, 0) + quantity
 
     def remove_item(self, furniture: Furniture, quantity: int = 1) -> bool:
         """
@@ -391,7 +405,7 @@ class Inventory:
     
 
 
-### Pat 3 ###
+### Part 3 ###
 
 import hashlib
 from typing import Dict, List, Optional
