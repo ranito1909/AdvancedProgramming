@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Force pinned versions (NumPy 1.26.4 + Pandas 1.5.3)
+      - name: Force pinned NumPy and Pandas versions
         run: |
           # Upgrade base tools
           python -m pip install --upgrade pip setuptools wheel
@@ -30,16 +30,16 @@ jobs:
           # Uninstall existing numpy/pandas if present
           pip uninstall -y numpy pandas || true
 
-          # Attempt to forcibly install your pinned versions, ignoring deps
-          # If numpy==1.26.4 is not on PyPI or is a pre-release, add --pre
+          # Force install specific versions without dependencies
           pip install --no-cache-dir --no-deps "numpy==1.26.4" "pandas==1.5.3"
 
-          # Now install everything else, ignoring deps to avoid overwriting pinned versions
+          # Now install everything else from requirements.txt, ignoring deps
           pip install --no-cache-dir --no-deps -r requirements.txt
 
       - name: Run Unit Tests with Coverage
         run: |
           pytest --cov=app tests/
+
 
       - name: Check Code Coverage
         run: |
