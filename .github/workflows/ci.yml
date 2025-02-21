@@ -22,28 +22,27 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Force Reinstall Dependencies
+      - name: Force Downgrade NumPy to 1.24.3 and install dependencies
         run: |
-          # Upgrade base tools
+          # Upgrade pip, setuptools, wheel
           python -m pip install --upgrade pip setuptools wheel
-
-          # Uninstall problematic packages
-          pip uninstall -y numpy pandas pluggy || true
-          pip uninstall -y numpy pandas pluggy || true
-          pip uninstall -y numpy pandas pluggy || true
-
-          # Force install exact versions
-          pip install --no-cache-dir numpy==1.24.3
-          pip install --no-cache-dir pandas==1.5.3
-          pip install --no-cache-dir pluggy==1.5.0
-
-          # Install other requirements
+          
+          # Uninstall any existing numpy and pandas to ensure a clean state
+          pip uninstall -y numpy pandas || true
+          
+          # Force install the exact versions you need
+          pip install --no-cache-dir --ignore-installed "numpy==1.24.3" "pandas==1.5.3"
+          
+          # Install all requirements (make sure your requirements.txt is updated)
           pip install --no-cache-dir -r requirements.txt
 
-          # Confirm versions
+          # Install additional tools like ruff and black if not in requirements.txt
+          pip install ruff black
+
+          # Confirm installed versions (optional)
           python -c "import numpy; print('NumPy version:', numpy.__version__)"
           python -c "import pandas; print('Pandas version:', pandas.__version__)"
-          python -c "import pluggy; print('Pluggy version:', pluggy.__version__)"
+          python -c "import ruff; print('Ruff installed')" || echo "Ruff not installed"
 
       - name: Run Unit Tests with Coverage
         run: |
@@ -57,6 +56,6 @@ jobs:
         run: |
           ruff .
 
-      - name: Check Code Formatting with Black
+      - name: Check Code Formatting   with  Black
         run: |
           black --check .
