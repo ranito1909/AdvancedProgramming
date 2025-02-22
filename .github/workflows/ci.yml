@@ -54,6 +54,7 @@ jobs:
 
       - name: Run Linting with Ruff
         run: |
+          ruff .
           ruff check .
 
       - name: Check Code Formatting with Black
