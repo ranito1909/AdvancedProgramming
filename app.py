@@ -84,6 +84,30 @@ def get_users():
     global users_df
     return jsonify(users_df.to_dict(orient="records")), 200
 
+@app.route("/api/furniture/search", methods=["GET"])
+def search_furniture():
+    """
+    Search for furniture items based on query parameters.
+    Example: /api/furniture/search?name_substring=Chair&min_price=100&max_price=500
+    """
+    name_substring = request.args.get("name_substring")
+    min_price = request.args.get("min_price", type=float)
+    max_price = request.args.get("max_price", type=float)
+    ftype_str = request.args.get("furniture_type")
+
+    class_map = {"chair": Chair, "table": Table, "sofa": Sofa, "lamp": Lamp, "shelf": Shelf}
+    furniture_type = class_map.get(ftype_str.lower()) if ftype_str else None
+
+    results = inventory.search(
+        name_substring=name_substring,
+        min_price=min_price,
+        max_price=max_price,
+        furniture_type=furniture_type,
+    )
+
+    response_data = [{"name": f.name, "description": f.description, "price": f.price} for f in results]
+    return jsonify(response_data), 200
+
 
 # -------------------------------------------------------------------s-
 # POST endpoints
@@ -159,6 +183,47 @@ def update_profile(email):
     return jsonify(users_df.loc[idx].to_dict()), 200
 
 
+@app.route("/api/furniture", methods=["POST"])
+def add_furniture():
+    """
+    Add a new furniture item to the inventory.
+    """
+    data = request.get_json()
+    ftype = data.get("type")
+    class_map = {"chair": Chair, "table": Table, "sofa": Sofa, "lamp": Lamp, "shelf": Shelf}
+
+    if ftype.lower() not in class_map:
+        return jsonify({"error": "Invalid furniture type"}), 400
+
+    furniture = class_map[ftype.lower()](
+        name=data["name"],
+        description=data["description"],
+        price=data["price"],
+        dimensions=tuple(data["dimensions"]),
+    )
+    inventory.add_item(furniture, data.get("quantity", 1))
+    return jsonify({"message": "Furniture added successfully"}), 201
+
+
+@app.route("/api/checkout", methods=["POST"])
+def checkout():
+    """
+    Process a checkout request for a user's shopping cart.
+    """
+    data = request.get_json()
+    user_email = data.get("user_email")
+
+    user_cart = UserManager.get_cart(user_email)
+    if not user_cart:
+        return jsonify({"error": "Cart not found"}), 404
+
+    checkout_process = Checkout(user_cart)
+    if not checkout_process.validate_cart():
+        return jsonify({"error": "Invalid cart"}), 400
+
+    order = checkout_process.finalize_order()
+    return jsonify({"message": "Order placed", "order_id": order.order_id}), 201
+
 # --------------------------------------------------------------------
 # PUT endpoints for updating cart and inventory
 # --------------------------------------------------------------------
@@ -190,7 +255,22 @@ def update_inventory(furniture_id):
     save_furniture()
     return jsonify(furniture_df.loc[idx].to_dict()), 200
 
+@app.route("/api/furniture/<int:furniture_id>/discount", methods=["PUT"])
+def apply_discount(furniture_id):
+    """
+    Apply a discount to a specific furniture item.
+    """
+    data = request.get_json()
+    discount_percentage = data.get("discount_percentage", 0)
+    
+    furniture = next((f for f in inventory.items.keys() if f.id == furniture_id), None)
+    if not furniture:
+        return jsonify({"error": "Furniture item not found"}), 404
 
+    furniture.apply_discount(discount_percentage)
+    return jsonify({"message": "Discount applied", "new_price": furniture.price}), 200
+
+    
 # --------------------------------------------------------------------
 # DELETE endpoints for cart and inventory
 # --------------------------------------------------------------------
