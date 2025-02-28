@@ -3,7 +3,6 @@ import pandas as pd
 import hashlib
 # Import furniture classes and the Inventory singleton from catalog.py
 from Catalog import Inventory, Furniture, Chair, Table, Sofa, Lamp, Shelf , User
-
 # Initialize the Inventory singleton
 inventory = Inventory.get_instance()
 
@@ -112,6 +111,7 @@ def register_user():
         return jsonify({"error": "Missing password"}), 400
     name = data.get("name", "")
     address = data.get("address", "")
+
     try:
         new_user = User.register_user(name, email, password, address)
     except ValueError as e:
