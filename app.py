@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+import os
 import pandas as pd
 import hashlib
 from typing import Dict, Tuple, List, Optional, Type
@@ -29,19 +30,17 @@ cart_df = pd.DataFrame(columns=["user_email", "items"])
 furniture_df= pd.DataFrame(columns=["id", "name", "description", "price", "dimensions", "class", "quantity"])
 next_furniture_id = 1
 
-# "Save" functions (simulate persistence)
-def save_orders():
-    pass
+# Generic function to save a pandas DataFrame using pickle
+def save_data(data: pd.DataFrame, filename: str, storage_dir: str = "storage") -> None:
+    if not os.path.exists(storage_dir):
+        os.makedirs(storage_dir)
+    filepath = os.path.join(storage_dir, filename)
+    data.to_pickle(filepath)
+    print(f"Data saved to {filepath}")
 
-def save_users():
-    pass
-
-def save_cart():
-    pass
-
-def save_inventory(inventory_instance):
+# Save inventory: inventory is a singleton and its data comes from a dict
+def save_inventory(inventory_instance, filename: str = "inventory.pkl", storage_dir: str = "storage") -> pd.DataFrame:
     data = []
-    # inventory_instance.items is a dict: {Furniture: quantity}
     for furniture, quantity in inventory_instance.items.items():
         data.append({
             "id": getattr(furniture, "id", None),
@@ -52,8 +51,21 @@ def save_inventory(inventory_instance):
             "class": furniture.__class__.__name__,
             "quantity": quantity
         })
-    return pd.DataFrame(data)
+    inventory_df = pd.DataFrame(data)
+    save_data(inventory_df, filename, storage_dir)
+    return inventory_df
 
+# Save orders: orders are stored in a pandas DataFrame (e.g., orders_df)
+def save_orders(orders_df: pd.DataFrame, filename: str = "orders.pkl", storage_dir: str = "storage") -> None:
+    save_data(orders_df, filename, storage_dir)
+
+# Save users: users is stored in a pandas DataFrame (e.g., users_df)
+def save_users(users_df: pd.DataFrame, filename: str = "users.pkl", storage_dir: str = "storage") -> None:
+    save_data(users_df, filename, storage_dir)
+
+# Save cart: cart is stored in a pandas DataFrame (e.g., cart_df)
+def save_cart(cart_df: pd.DataFrame, filename: str = "cart.pkl", storage_dir: str = "storage") -> None:
+    save_data(cart_df, filename, storage_dir)
 
 # ---------------------------
 # GET Endpoints
@@ -116,7 +128,7 @@ def register_user():
         "order_history": []
     }
     users_df = users_df.append(new_user, ignore_index=True)
-    save_users()
+    save_users(users_df)
     return jsonify(new_user), 201
 
 @app.route("/api/orders", methods=["POST"])
@@ -150,7 +162,7 @@ def create_order():
         "items": items
     }
     orders_df = orders_df.append(new_order, ignore_index=True)
-    save_orders()
+    save_orders(orders_df)
 
     # Update the user's order_history
     idx_list = users_df.index[users_df["email"] == user_email].tolist()
@@ -162,7 +174,7 @@ def create_order():
         history = []
     history.append(new_order)
     users_df.at[idx, "order_history"] = history
-    save_users()
+    save_users(users_df)
 
     return jsonify(new_order), 201
 
@@ -179,7 +191,7 @@ def update_profile(email):
         users_df.at[idx, "name"] = data["name"]
     if "address" in data:
         users_df.at[idx, "address"] = data["address"]
-    save_users()
+    save_users(users_df)
     updated_user = users_df.loc[idx].to_dict()
     if updated_user.get("order_history") is None:
         updated_user["order_history"] = []
@@ -203,7 +215,7 @@ def update_cart(email):
     else:
         new_cart = {"user_email": email, "items": items}
         cart_df = cart_df.append(new_cart, ignore_index=True)
-    save_cart()
+    save_cart(cart_df)
     return jsonify({"user_email": email, "items": items}), 200
 
 @app.route("/api/inventory/<int:furniture_id>", methods=["PUT"])
@@ -334,7 +346,7 @@ def delete_cart_item(email, item_id):
     if len(new_items) == len(items):
         return jsonify({"error": "Item not found in cart"}), 404
     cart_df.at[idx, "items"] = new_items
-    save_cart()
+    save_cart(cart_df)
     return jsonify({"message": "Item removed from cart"}), 200
 
 @app.route("/api/users/<email>", methods=["DELETE"])
@@ -343,7 +355,7 @@ def delete_user(email):
     if email not in users_df["email"].values:
         return jsonify({"error": "User not found"}), 404
     users_df = users_df[users_df["email"] != email]
-    save_users()
+    save_users(users_df)
     return jsonify({"message": "User deleted"}), 200
 
 # ---------------------------
@@ -397,3 +409,16 @@ if __name__ == "__main__":
     )
     print("users\n\n", users_df, "\n\norders\n\n", orders_df, "\n\n", res_sec_user.get_json(), "\n\n",furniture_df,"\n\n",res_furinture_not_in_inventory.get_json(), "\n\n", response.get_json(), "\n\n", res_furinture_in_inventory.get_json())
     app.run(debug=True)
+
+
+# Check users data
+users_df = pd.read_pickle("storage/users.pkl")
+print(users_df)
+
+# Check orders data
+orders_df = pd.read_pickle("storage/orders.pkl")
+print(orders_df)
+
+# Similarly, you can check inventory or cart if needed:
+inventory_df = pd.read_pickle("storage/inventory.pkl")
+print(inventory_df)
