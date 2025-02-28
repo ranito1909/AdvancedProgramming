@@ -4,6 +4,7 @@ from typing import Tuple, Dict, List, Optional
 import hashlib
 from enum import Enum
 from datetime import datetime
+from typing import List as _List, Optional as _Optional, Type as _Type
 
 
 ### Part 1 ### 
@@ -456,7 +457,7 @@ class Inventory:
     # ----------------------------------------------------------------
     # Search Method
     # ----------------------------------------------------------------
-    from typing import List as _List, Optional as _Optional, Type as _Type
+   
 
     def search(
         self,
