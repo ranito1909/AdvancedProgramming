@@ -2,7 +2,7 @@
 import uuid
 import pytest
 import app
-
+from Catalog import LeafItem, Table, Chair
 
 def test_get_furniture(client):
     """
@@ -47,12 +47,28 @@ def test_register_and_delete_user(client):
 
 def test_create_order(client):
     """
-    1) Register a new user
-    2) Create an order for that user via POST /api/orders
-    3) Ensure status code 201 and that order_id is in the returned JSON
+    1) Create a furniture item so it exists in inventory.
+    2) Register a new user.
+    3) Create an order for that user via POST /api/orders.
+    4) Ensure status code 201 and that order_id is in the returned JSON.
     """
+    # Create a furniture item (assumed id will be 1)
+    response = client.post(
+        "/api/inventory",
+        json={
+            "type": "Chair",
+            "name": "Test Chair",
+            "description": "A test chair for order creation",
+            "price": 75.0,
+            "dimensions": [30, 30, 30],
+            "quantity": 5,
+            "cushion_material": "foam"
+        },
+    )
+    assert response.status_code == 201
+
     # Register user
-    client.post(
+    response = client.post(
         "/api/users",
         json={
             "email": "orderuser@example.com",
@@ -60,14 +76,14 @@ def test_create_order(client):
             "password": "orderpassword",
         },
     )
+    assert response.status_code == 201
 
-    # Create order
+    # Create order referencing furniture_id 1
     response = client.post(
         "/api/orders",
         json={
             "user_email": "orderuser@example.com",
-            "items": [{"furniture_id": 1, "quantity": 2}],
-            "total": 500,
+            "items": [{"furniture_id": 1, "quantity": 2}]
         },
     )
     assert response.status_code == 201
@@ -77,9 +93,9 @@ def test_create_order(client):
 
 def test_update_profile(client):
     """
-    1) Register a user
-    2) POST /api/users/<email>/profile to update name and address
-    3) Verify changes persisted
+    1) Register a user.
+    2) POST /api/users/<email>/profile to update name and address.
+    3) Verify changes persisted.
     """
     client.post(
         "/api/users",
@@ -102,9 +118,9 @@ def test_update_profile(client):
 
 def test_update_cart(client):
     """
-    1) PUT /api/cart/<email> to create a cart with items
-    2) PUT again to update the items
-    3) Verify both operations succeed with status_code 200
+    1) PUT /api/cart/<email> to create a cart with items.
+    2) PUT again to update the items.
+    3) Verify both operations succeed with status_code 200.
     """
     email = "cartupdate@example.com"
 
@@ -132,22 +148,16 @@ def test_update_cart(client):
 
 def test_update_inventory(client):
     """
-    1) Manually append a furniture item to furniture_df
-    2) PUT /api/inventory/<id> to update the item
-    3) Ensure changes are reflected in the response
+    1) Add a dummy furniture item directly to the Inventory singleton.
+    2) Call save_inventory to update furniture_df.
+    3) PUT /api/inventory/<id> to update the item.
+    4) Ensure changes are reflected in the response.
     """
-    # Add dummy furniture item
-    app.furniture_df = app.furniture_df.append(
-        {
-            "id": 999,
-            "name": "Test Table",
-            "description": "A test table",
-            "price": 100.0,
-            "dimensions": (50, 50, 30),
-        },
-        ignore_index=True,
-    )
-    app.save_furniture()
+    # Create a dummy Table item; supply required parameter "wood" for frame_material.
+    dummy = Table("Test Table", "A test table", 100.0, (50, 50, 30), "wood")
+    dummy.id = 999
+    app.inventory.add_item(dummy, 10)
+    app.furniture_df = app.save_inventory(app.inventory)
 
     # Update the item
     response = client.put("/api/inventory/999", json={"price": 120.0, "name": "Updated Test Table"})
@@ -159,9 +169,9 @@ def test_update_inventory(client):
 
 def test_delete_cart_item(client):
     """
-    1) Create a cart with two items
-    2) DELETE one item => expect 200
-    3) DELETE a non-existing item => expect 404
+    1) Create a cart with two items.
+    2) DELETE one item => expect 200.
+    3) DELETE a non-existing item => expect 404.
     """
     email = "cartdelete@example.com"
     cart_items = [{"furniture_id": 101, "quantity": 2}, {"furniture_id": 202, "quantity": 1}]
@@ -182,30 +192,24 @@ def test_delete_cart_item(client):
 
 def test_delete_inventory(client):
     """
-    1) Insert a dummy furniture item
-    2) DELETE that item => expect 200
-    3) Try updating it => expect 404
+    1) Add a dummy furniture item directly to the Inventory singleton.
+    2) Call save_inventory to update furniture_df.
+    3) DELETE that item => expect 200.
+    4) Try updating it => expect 404.
     """
-    # Add furniture item
-    app.furniture_df = app.furniture_df.append(
-        {
-            "id": 888,
-            "name": "Delete Chair",
-            "description": "Chair to be deleted",
-            "price": 75.0,
-            "dimensions": (40, 40, 90),
-        },
-        ignore_index=True,
-    )
-    app.save_furniture()
+    # Create a dummy Chair item; supply required parameter "foam" for cushion_material.
+    dummy = Chair("Delete Chair", "Chair to be deleted", 75.0, (40, 40, 90), "foam")
+    dummy.id = 888
+    app.inventory.add_item(dummy, 1)
+    app.furniture_df = app.save_inventory(app.inventory)
 
-    # Delete
+    # Delete the item
     response = client.delete("/api/inventory/888")
     assert response.status_code == 200
     data = response.get_json()
     assert "Furniture item deleted" in data["message"]
 
-    # Verify it's gone
+    # Attempt to update the deleted item
     response = client.put("/api/inventory/888", json={"price": 80.0})
     assert response.status_code == 404
 
@@ -218,7 +222,6 @@ def test_leafitem_discount_within_limits():
     Create a LeafItem and apply various discounts between 0% and 100%.
     Verify that the new price is correct, and no exceptions are raised.
     """
-    from Catalog import LeafItem
     item = LeafItem("Test Lamp", 200.0, quantity=1)
 
     # 0% discount => price stays the same
@@ -227,10 +230,6 @@ def test_leafitem_discount_within_limits():
 
     # 50% discount => price halves
     item.apply_discount(50)
-    # Original base was 200, first discount did nothing, second discount is 50% off 200
-    # => new price is 200 - (200 * 0.5) = 100
-    # But note that the code resets _current_price each time from the original base (200).
-    # So after 50% discount, it becomes 100.
     assert item.get_price() == 100.0
 
     # 100% discount => price is 0
@@ -243,8 +242,6 @@ def test_leafitem_discount_over_100():
     Attempt to apply a discount > 100%.
     Expect a ValueError to be raised (enforced in LeafItem.apply_discount).
     """
-    from Catalog import LeafItem
     item = LeafItem("Test Chair", 100.0, quantity=1)
-
     with pytest.raises(ValueError):
         item.apply_discount(150)  # 150% discount => not allowed
