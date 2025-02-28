@@ -5,7 +5,7 @@ from typing import Dict, Tuple, List, Optional, Type
 from abc import ABC, abstractmethod
 
 # Import furniture classes and the Inventory singleton from catalog.py
-from Catalog import Inventory, Furniture, Chair, Table, Sofa, Lamp, Shelf
+from Catalog import Inventory, Furniture, Chair, Table, Sofa, Lamp, Shelf, User
 
 # Initialize the Inventory singleton
 inventory = Inventory.get_instance()
@@ -107,6 +107,11 @@ def register_user():
     name = data.get("name", "")
     address = data.get("address", "")
     password_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+    try:
+        User.register_user(name, email, password, address)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
     new_user = {
         "email": email,
