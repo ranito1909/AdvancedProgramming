@@ -283,10 +283,11 @@ def create_furniture():
         return jsonify({"error": f"Invalid furniture type: {ftype}"}), 400
 
     furniture_class = FURNITURE_MAP[ftype]
-    if cushion_material == None:
-        new_furniture = furniture_class(name, description, price, dimensions)
-    else:
-        new_furniture = furniture_class(name, description, price, dimensions, cushion_material)
+    args = [name, description, price, dimensions]
+    if cushion_material is not None:
+        args.append(cushion_material)
+    new_furniture = furniture_class(*args)
+
     new_furniture.id = next_furniture_id
     next_furniture_id += 1
 
