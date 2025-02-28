@@ -2,12 +2,8 @@ from flask import Flask, request, jsonify
 import os
 import pandas as pd
 import hashlib
-from typing import Dict, Tuple, List, Optional, Type
-from abc import ABC, abstractmethod
-
 # Import furniture classes and the Inventory singleton from catalog.py
-from Catalog import Inventory, Furniture, Chair, Table, Sofa, Lamp, Shelf
-
+from Catalog import Inventory, Furniture, Chair, Table, Sofa, Lamp, Shelf , User
 # Initialize the Inventory singleton
 inventory = Inventory.get_instance()
 
@@ -95,10 +91,19 @@ def get_orders():
 
 @app.route("/api/users", methods=["GET"])
 def get_users():
-    users = users_df.to_dict(orient="records")
-    for user in users:
-        if user.get("order_history") is None:
-            user["order_history"] = []
+    """
+    Retrieve all users from the User class storage.
+    """
+    users = []
+    # Iterate over the internal _users dict
+    for email, user in User._users.items():
+        users.append({
+            "email": user.email,
+            "name": user.name,
+            "password_hash": user.password_hash,
+            "address": user.address,
+            "order_history": user.order_history
+        })
     return jsonify(users), 200
 
 # ---------------------------
@@ -106,19 +111,23 @@ def get_users():
 # ---------------------------
 @app.route("/api/users", methods=["POST"])
 def register_user():
-    global users_df
+    """
+    Register a new user using the User.register_user class method.
+    """
     data = request.get_json() or {}
     email = data.get("email")
     if not email:
         return jsonify({"error": "Missing email"}), 400
-    if email in users_df["email"].values:
-        return jsonify({"error": "Email already exists"}), 400
     password = data.get("password", "")
     if not password:
         return jsonify({"error": "Missing password"}), 400
     name = data.get("name", "")
     address = data.get("address", "")
-    password_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+    try:
+        new_user = User.register_user(name, email, password, address)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
     new_user = {
         "email": email,
@@ -128,28 +137,36 @@ def register_user():
         "order_history": []
     }
     users_df = users_df.append(new_user, ignore_index=True)
-    save_users(users_df)
+    save_users()
     return jsonify(new_user), 201
 
 @app.route("/api/orders", methods=["POST"])
 def create_order():
-    global orders_df, users_df
+    global orders_df
     data = request.get_json() or {}
     user_email = data.get("user_email")
-    if not user_email:
-        return jsonify({"error": "No user_email provided"}), 400
-    if user_email not in users_df["email"].values:
+    print(f"[DEBUG] create_order: received user_email: {user_email}")
+    
+    # Retrieve the user instance from the User class
+    user = User.get_user(user_email)
+    if not user:
         return jsonify({"error": "User not found"}), 404
+
     items = data.get("items", [])
     if not isinstance(items, list):
         return jsonify({"error": "items must be a list"}), 400
 
-    # Check that each furniture item in the order exists in the inventory.
+    # Check that each furniture item in the order exists in the inventory and has sufficient quantity.
     for order_item in items:
         furniture_id = order_item.get("furniture_id")
+        order_quantity = order_item.get("quantity", 1)
         found = False
         for furniture in inventory.items.keys():
+            print(f"[DEBUG] Checking furniture id: {getattr(furniture, 'id', None)} against order id: {furniture_id}")
             if getattr(furniture, "id", None) == furniture_id:
+                if inventory.items[furniture] < order_quantity:
+                    return jsonify({"error": f"Not enough quantity for furniture with id {furniture_id}"}), 400
+                print(f"[DEBUG] Found furniture id {furniture_id} with quantity {inventory.items[furniture]}")
                 found = True
                 break
         if not found:
@@ -162,7 +179,7 @@ def create_order():
         "items": items
     }
     orders_df = orders_df.append(new_order, ignore_index=True)
-    save_orders(orders_df)
+    save_orders()
 
     # Update the user's order_history
     idx_list = users_df.index[users_df["email"] == user_email].tolist()
@@ -174,16 +191,20 @@ def create_order():
         history = []
     history.append(new_order)
     users_df.at[idx, "order_history"] = history
-    save_users(users_df)
+    save_users()
 
     return jsonify(new_order), 201
 
 
 @app.route("/api/users/<email>/profile", methods=["POST"])
 def update_profile(email):
-    global users_df
+    """
+    Update an existing user's profile.
+    """
     data = request.get_json() or {}
-    if email not in users_df["email"].values:
+    user = User.get_user(email)
+    if not user:
+        # For test purposes, if not found, we return 200 with a message.
         return jsonify({"message": "No such user, but returning 200 for test"}), 200
 
     idx = users_df.index[users_df["email"] == email].tolist()[0]
@@ -191,7 +212,7 @@ def update_profile(email):
         users_df.at[idx, "name"] = data["name"]
     if "address" in data:
         users_df.at[idx, "address"] = data["address"]
-    save_users(users_df)
+    save_users()
     updated_user = users_df.loc[idx].to_dict()
     if updated_user.get("order_history") is None:
         updated_user["order_history"] = []
@@ -215,7 +236,7 @@ def update_cart(email):
     else:
         new_cart = {"user_email": email, "items": items}
         cart_df = cart_df.append(new_cart, ignore_index=True)
-    save_cart(cart_df)
+    save_cart()
     return jsonify({"user_email": email, "items": items}), 200
 
 @app.route("/api/inventory/<int:furniture_id>", methods=["PUT"])
@@ -346,16 +367,18 @@ def delete_cart_item(email, item_id):
     if len(new_items) == len(items):
         return jsonify({"error": "Item not found in cart"}), 404
     cart_df.at[idx, "items"] = new_items
-    save_cart(cart_df)
+    save_cart()
     return jsonify({"message": "Item removed from cart"}), 200
 
 @app.route("/api/users/<email>", methods=["DELETE"])
 def delete_user(email):
-    global users_df
-    if email not in users_df["email"].values:
+    """
+    Delete a user via the User.delete_user class method.
+    """
+    if not User.delete_user(email):
         return jsonify({"error": "User not found"}), 404
     users_df = users_df[users_df["email"] != email]
-    save_users(users_df)
+    save_users()
     return jsonify({"message": "User deleted"}), 200
 
 # ---------------------------
@@ -407,18 +430,41 @@ if __name__ == "__main__":
             "items": [{"furniture_id": 1, "quantity": 1}]
         }
     )
-    print("users\n\n", users_df, "\n\norders\n\n", orders_df, "\n\n", res_sec_user.get_json(), "\n\n",furniture_df,"\n\n",res_furinture_not_in_inventory.get_json(), "\n\n", response.get_json(), "\n\n", res_furinture_in_inventory.get_json())
+    response12 = client.post(
+        "/api/inventory",
+        json={
+            "type": "Chair",
+            "name": "Test Chair",
+            "description": "A test chair for order creation",
+            "price": 75.0,
+            "dimensions": [30, 30, 30],
+            "quantity": 5,
+            "cushion_material": "foam"
+        },
+    )
+    assert response.status_code == 201, f"Furniture creation failed: {response.status_code}"
+    furniture_data = response.get_json()
+    furniture_id = furniture_data.get("id")
+
+    # Register user
+    response23 = client.post(
+        "/api/users",
+        json={
+            "email": "orderuser@example.com",
+            "name": "Order User",
+            "password": "orderpassword",
+        },
+    )
+
+    # Create order referencing the actual furniture_id
+    response44 = client.post(
+        "/api/orders",
+        json={
+            "user_email": "orderuser@example.com",
+            "items": [{"furniture_id": furniture_id, "quantity": 2}]
+        },
+    )
+    order = response.get_json()
+    #print("users\n\n", users_df, "\n\norders\n\n", orders_df, "\n\n", res_sec_user.get_json(), "\n\n",furniture_df,"\n\n",res_furinture_not_in_inventory.get_json(), "\n\n", response.get_json(), "\n\n", res_furinture_in_inventory.get_json())
+    print("\n\n",response44.get_json())
     app.run(debug=True)
-
-
-# Check users data
-users_df = pd.read_pickle("storage/users.pkl")
-print(users_df)
-
-# Check orders data
-orders_df = pd.read_pickle("storage/orders.pkl")
-print(orders_df)
-
-# Similarly, you can check inventory or cart if needed:
-inventory_df = pd.read_pickle("storage/inventory.pkl")
-print(inventory_df)
