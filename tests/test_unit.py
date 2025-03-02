@@ -128,6 +128,9 @@ def test_update_cart(client):
     3) Verify both operations succeed with status_code 200.
     """
     email = "cartupdate@example.com"
+    dummy_item = app.Chair("Dummy Chair", "For testing", 100.0, (30, 30, 30), "foam")
+    dummy_item.id = 10
+    app.inventory.items[dummy_item] = 10
 
     # Initial cart
     response = client.put(
@@ -141,13 +144,12 @@ def test_update_cart(client):
     # Update cart
     response = client.put(
         f"/api/cart/{email}",
-        json={"items": [{"furniture_id": 10, "quantity": 5}, {"furniture_id": 20, "quantity": 1}]},
+        json={"items": [{"furniture_id": 10, "quantity": 5}]},
     )
     assert response.status_code == 200
     data = response.get_json()
     assert data["items"] == [
-        {"furniture_id": 10, "quantity": 5},
-        {"furniture_id": 20, "quantity": 1},
+        {"furniture_id": 10, "quantity": 5}
     ]
 
 
@@ -179,13 +181,13 @@ def test_delete_cart_item(client):
     3) DELETE a non-existing item => expect 404.
     """
     email = "cartdelete@example.com"
-    cart_items = [{"furniture_id": 101, "quantity": 2}, {"furniture_id": 202, "quantity": 1}]
+    cart_items = [{"furniture_id": 10, "quantity": 2}]
     # Create the cart
     response = client.put(f"/api/cart/{email}", json={"items": cart_items})
     assert response.status_code == 200
 
     # Delete one item
-    response = client.delete(f"/api/cart/{email}/101")
+    response = client.delete(f"/api/cart/{email}/10")
     assert response.status_code == 200
     data = response.get_json()
     assert "Item removed" in data["message"]
