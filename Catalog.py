@@ -567,14 +567,14 @@ class Checkout:
             if furniture_in_inventory:
                 self.inventory.remove_item(furniture_in_inventory, item.quantity)
 
-        order_summary = (
+        self.order_summary = (
             f"Order for {self.user.name}, "
             f"Items: {[f'{i.name} x {i.quantity}' for i in leaf_items]}, "
             f"Ship to: {self.address}, "
             f"Payment via: {self.payment_method}, "
             f"Total: {self.cart.get_total_price():.2f}"
         )
-        self.user.add_order(order_summary)
+        self.user.add_order(self.order_summary)
         self.order_finalized = True
         return True
 
@@ -634,18 +634,38 @@ class Order:
         status (OrderStatus): Current order status.
         created_at (datetime): Timestamp when the order was created.
     """
+    all_orders = []  # Class-level list to store all orders.
+
     def __init__(self, user: User, items: List[LeafItem], total_price: float, status: OrderStatus = OrderStatus.PENDING) -> None:
         self.user = user
         self.items = items
         self.total_price = total_price
         self.status = status
         self.created_at = datetime.now()
+        self.order_id = len(Order.all_orders) + 1  # Assign an order id.
+        Order.all_orders.append(self)
 
     def set_status(self, new_status: OrderStatus) -> None:
         self.status = new_status
 
     def get_status(self) -> OrderStatus:
         return self.status
+    
+    def to_dict(self) -> dict:
+        """
+        Convert this Order instance to a dictionary.
+        """
+        return {
+            "order_id": self.order_id,
+            "user_email": self.user.email,
+            "items": [
+                {"name": item.name, "quantity": item.quantity, "unit_price": item.unit_price}
+                for item in self.items
+            ],
+            "total_price": self.total_price,
+            "status": self.status.value,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
 
     def __str__(self) -> str:
         item_descriptions = ", ".join(f"{i.name} x {i.quantity}" for i in self.items)
