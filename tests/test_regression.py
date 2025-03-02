@@ -334,3 +334,5 @@ def test_discount_application_in_checkout_regression(client):
     # Verify inventory update: initial quantity 10, purchased 2, expected quantity 8
     new_qty = inventory_instance.get_quantity(furniture_item)
     assert new_qty == 8, f"Expected inventory quantity 8 after discount checkout, got {new_qty}"
+
+    
