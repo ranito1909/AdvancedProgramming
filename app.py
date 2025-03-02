@@ -441,6 +441,7 @@ def delete_user(email):
 # Run the Flask App (with some regression test calls)
 # ---------------------------
 if __name__ == "__main__":
+    '''
     print("Starting Flask app...")
 
     with app.test_client() as client:
@@ -587,5 +588,6 @@ if __name__ == "__main__":
         print("Checkout Response:", checkout_response.get_json())
 
     # Start the Flask app in debug mode.
+    '''
     app.run(debug=True)
 
