@@ -2,7 +2,8 @@ from flask import Flask, request, jsonify
 import logging
 import pandas as pd
 # Import furniture classes and the Inventory singleton from catalog.py
-from Catalog import Inventory, Chair, Table, Sofa, Lamp, Shelf , User , ShoppingCart, LeafItem , Checkout
+from Catalog import Inventory, Chair, Table, Sofa, Lamp, Shelf , User , ShoppingCart, LeafItem , Checkout , Order , OrderStatus
+
 # Initialize the Inventory singleton
 inventory = Inventory.get_instance()
 shopping_carts = {}
@@ -77,7 +78,8 @@ def get_furniture():
 
 @app.route("/api/orders", methods=["GET"])
 def get_orders():
-    return jsonify(orders_df.to_dict(orient="records")), 200
+    orders_dict = [order.to_dict() for order in Order.all_orders]
+    return jsonify(orders_dict), 200
 
 @app.route("/api/users", methods=["GET"])
 def get_users():
@@ -130,12 +132,11 @@ def register_user():
 
 @app.route("/api/orders", methods=["POST"])
 def create_order():
-    global orders_df
     data = request.get_json() or {}
     user_email = data.get("user_email")
     print(f"[DEBUG] create_order: received user_email: {user_email}")
     
-    # Retrieve the user instance from the User class
+    # Retrieve the user instance.
     user = User.get_user(user_email)
     if not user:
         return jsonify({"error": "User not found"}), 404
@@ -144,36 +145,46 @@ def create_order():
     if not isinstance(items, list):
         return jsonify({"error": "items must be a list"}), 400
 
-    # Check that each furniture item in the order exists in the inventory and has sufficient quantity.
+    leaf_items = []
+    total_price = 0.0
+
+    # Validate each order item against the inventory.
     for order_item in items:
         furniture_id = order_item.get("furniture_id")
         order_quantity = order_item.get("quantity", 1)
-        found = False
+        found = None
         for furniture in inventory.items.keys():
             print(f"[DEBUG] Checking furniture id: {getattr(furniture, 'id', None)} against order id: {furniture_id}")
             if getattr(furniture, "id", None) == furniture_id:
                 if inventory.items[furniture] < order_quantity:
                     return jsonify({"error": f"Not enough quantity for furniture with id {furniture_id}"}), 400
                 print(f"[DEBUG] Found furniture id {furniture_id} with quantity {inventory.items[furniture]}")
-                found = True
+                found = furniture
                 break
         if not found:
             return jsonify({"error": f"Furniture with id {furniture_id} does not exist"}), 404
 
-    order_id = data.get("order_id", len(orders_df) + 1)
-    new_order = {
-        "order_id": order_id,
-        "user_email": user_email,
-        "items": items
-    }
-    orders_df = orders_df.append(new_order, ignore_index=True)
-    save_orders()
+        # Create a LeafItem for the furniture.
+        leaf_item = LeafItem(found.name, found.price, quantity=order_quantity)
+        leaf_items.append(leaf_item)
+        total_price += leaf_item.get_price()
 
-    # Update the user's order_history using the instance method.
-    user.add_order(new_order)
+    # Create the Order. It is automatically stored in Order.all_orders.
+    new_order = Order(user, leaf_items, total_price, status=OrderStatus.PENDING)
     
-    return jsonify(new_order), 201
+    # Update inventory: subtract purchased quantities.
+    for order_item in items:
+        furniture_id = order_item.get("furniture_id")
+        order_quantity = order_item.get("quantity", 1)
+        for furniture in list(inventory.items.keys()):
+            if getattr(furniture, "id", None) == furniture_id:
+                inventory.items[furniture] -= order_quantity
+                break
 
+    # Update the user's order history.
+    user.add_order(str(new_order))
+    
+    return jsonify(new_order.to_dict()), 201
 
 @app.route("/api/users/<email>/profile", methods=["POST"])
 def update_profile(email):
@@ -227,7 +238,7 @@ def checkout(email):
         return jsonify({"error": "Checkout process failed. Check logs for details."}), 400
 
     # Assuming the user object stores order summaries in an 'orders' list.
-    order_summary = user.orders[-1] if hasattr(user, "orders") and user.orders else "Order summary not available"
+    order_summary = checkout_obj.order_summary or "Order summary not available"
     app.logger.debug("[DEBUG] checkout: Order finalized for user %s with summary: %s", email, order_summary)
     return jsonify({"message": "Order finalized successfully.", "order_summary": order_summary}), 200
 
@@ -241,13 +252,12 @@ def update_cart(email):
     
     items = data.get("items", [])
     if not isinstance(items, list):
-        app.logger.debug("[DEBUG] update_cart: 'items' is not a list: %s", items)
-        return jsonify({"error": "items must be a list", "data_received": data}), 400
+        return jsonify({"error": "items must be a list"}), 400
 
     # If a cart exists for the user, clear its items; otherwise, create a new cart.
     if email in shopping_carts:
         cart = shopping_carts[email]
-        cart.root._children.clear()
+        cart.root._children.clear()  # Clear previous items.
         app.logger.debug("[DEBUG] update_cart: Existing cart found for email %s. Cleared previous items.", email)
     else:
         cart = ShoppingCart(name=email)
@@ -257,34 +267,29 @@ def update_cart(email):
     # Process each item in the request.
     for item in items:
         furniture_id = item.get("furniture_id")
-        if furniture_id is None:
-            error_msg = f"[DEBUG] update_cart: Missing required key 'furniture_id' in item: {item}"
-            app.logger.debug(error_msg)
-            return jsonify({
-                "error": "Each item must have 'furniture_id'",
-                "item": item
-            }), 400
-        
-        # Default to 0.0 if "unit_price" is not provided.
-        unit_price = item.get("unit_price", 0.0)
         quantity = item.get("quantity", 1)
+        # Try to get the unit_price from the payload; if not provided, lookup from inventory.
+        unit_price = item.get("unit_price")
+        if unit_price is None:
+            # Lookup furniture in the inventory by matching id.
+            found = None
+            for furniture in inventory.items.keys():
+                if getattr(furniture, "id", None) == furniture_id:
+                    found = furniture
+                    break
+            if found:
+                unit_price = found.price
+            else:
+                return jsonify({"error": f"Product with id {furniture_id} does not exist in the inventory."}), 404
         
-        try:
-            leaf_item = LeafItem(
-                name=str(furniture_id),
-                unit_price=float(unit_price),
-                quantity=int(quantity)
-            )
-            cart.add_item(leaf_item)
-            app.logger.debug("[DEBUG] update_cart: Added item: %s", leaf_item)
-        except Exception as e:
-            app.logger.debug("[DEBUG] update_cart: Exception when adding item %s: %s", item, e)
-            return jsonify({"error": str(e), "item": item}), 400
+        # Create the LeafItem using the valid unit_price.
+        leaf_item = LeafItem(name=str(furniture_id), unit_price=float(unit_price), quantity=int(quantity))
+        cart.add_item(leaf_item)
+        app.logger.debug("[DEBUG] update_cart: Added item: %s", leaf_item)
 
     total_price = cart.get_total_price()
     response_items = []
     for child in cart.root._children:
-        # Build the response to include only the fields expected by the tests.
         response_items.append({
             "furniture_id": int(child.name),
             "quantity": child.quantity
@@ -440,8 +445,7 @@ def delete_user(email):
 # ---------------------------
 # Run the Flask App (with some regression test calls)
 # ---------------------------
-if __name__ == "__main__": # pragma: no cover
-    '''
+if __name__ == "__main__":  # pragma: no cover
     print("Starting Flask app...")
 
     with app.test_client() as client:
@@ -587,7 +591,9 @@ if __name__ == "__main__": # pragma: no cover
         checkout_response = client.post(f"/api/checkout/cartupdate@example.com", json=checkout_payload)
         print("Checkout Response:", checkout_response.get_json())
 
-    # Start the Flask app in debug mode.
-    '''
-    app.run(debug=True)
+        # --- Retrieve and Print All Orders ---
+        orders_response = client.get("/api/orders")
+        print("All Orders:", orders_response.get_json())
 
+    # Start the Flask app in debug mode.
+    app.run(debug=True)

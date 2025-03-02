@@ -128,6 +128,21 @@ def test_cart_update_and_deletion(client):
       4. Verify that the cart contents reflect these operations.
     """
     email = "cart_regression@example.com"
+
+    # Pre-populate the inventory with dummy items matching the test furniture IDs.
+    # We use the concrete Chair class (adjust parameters as needed).
+    dummy_item_101 = app.Chair("Item101", "Test item 101", 50.0, (40, 40, 40), "foam")
+    dummy_item_101.id = 101
+    app.inventory.items[dummy_item_101] = 10
+
+    dummy_item_202 = app.Chair("Item202", "Test item 202", 75.0, (40, 40, 40), "foam")
+    dummy_item_202.id = 202
+    app.inventory.items[dummy_item_202] = 5
+
+    dummy_item_303 = app.Chair("Item303", "Test item 303", 100.0, (40, 40, 40), "foam")
+    dummy_item_303.id = 303
+    app.inventory.items[dummy_item_303] = 20
+
     # Create initial cart with two items
     response = client.put(
         f"/api/cart/{email}",
@@ -135,20 +150,23 @@ def test_cart_update_and_deletion(client):
     )
     assert response.status_code == 200, "Initial cart creation failed"
     
-    # Update the cart with new items (change quantity and add new item)
+    # Update the cart with new items (change quantity for id 101 and add a new item id 303)
     response = client.put(
         f"/api/cart/{email}",
         json={"items": [{"furniture_id": 101, "quantity": 3}, {"furniture_id": 303, "quantity": 2}]}
     )
     assert response.status_code == 200, "Cart update failed"
     data = response.get_json()
-    assert any(item["furniture_id"] == 101 and item["quantity"] == 3 for item in data["items"]), "Cart update did not reflect new quantity for furniture_id 101"
+    assert any(item["furniture_id"] == 101 and item["quantity"] == 3 for item in data["items"]), \
+        "Cart update did not reflect new quantity for furniture_id 101"
     
     # Delete a cart item (furniture_id 101)
     response = client.delete(f"/api/cart/{email}/101")
     assert response.status_code == 200, "Cart item deletion failed"
     data = response.get_json()
-    assert not any(item["furniture_id"] == 101 for item in data.get("items", [])), "Cart item 101 still exists after deletion"
+    assert not any(item["furniture_id"] == 101 for item in data.get("items", [])), \
+        "Cart item 101 still exists after deletion"
+
 
 # Regression Test: Inventory Update and Deletion
 def test_inventory_update_and_deletion(client):
