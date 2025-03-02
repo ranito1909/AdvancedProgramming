@@ -440,7 +440,7 @@ def delete_user(email):
 # ---------------------------
 # Run the Flask App (with some regression test calls)
 # ---------------------------
-if __name__ == "__main__":
+if __name__ == "__main__": # pragma: no cover
     '''
     print("Starting Flask app...")
 

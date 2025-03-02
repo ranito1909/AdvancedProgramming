@@ -2,7 +2,8 @@
 import uuid
 import pytest
 import app
-from Catalog import LeafItem, Table, Chair
+from Catalog import LeafItem, Table, Chair, Furniture
+
 
 def test_get_furniture(client):
     """
@@ -249,3 +250,116 @@ def test_leafitem_discount_over_100():
     item = LeafItem("Test Chair", 100.0, quantity=1)
     with pytest.raises(ValueError):
         item.apply_discount(150)  # 150% discount => not allowed
+
+
+def test_checkout_missing_fields(client):
+    """
+    Test /api/checkout/<email> with missing payment_method and address.
+    Expected to return 400.
+    """
+    email = "checkout_missing@example.com"
+    # Setup: register user and create a shopping cart.
+    user = app.User("Test Checkout Missing", email, "dummyhash")
+    app.User._users[email] = user
+    cart = app.ShoppingCart()
+    app.shopping_carts[email] = cart
+
+    # Do not provide payment_method or address.
+    response = client.post(f"/api/checkout/{email}", json={})
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "Both payment_method and address are required." in data["error"]
+
+def test_checkout_no_shopping_cart(client):
+    """
+    Test /api/checkout/<email> when there is no shopping cart.
+    Expected to return 404.
+    """
+    email = "checkout_nocart@example.com"
+    # Setup: create user but do not create a shopping cart.
+    user = app.User("Test No Cart", email, "dummyhash")
+    app.User._users[email] = user
+
+    response = client.post(
+        f"/api/checkout/{email}",
+        json={"payment_method": "credit_card", "address": "123 Checkout St"}
+    )
+    assert response.status_code == 404
+    data = response.get_json()
+    assert "Shopping cart not found for user." in data["error"]
+
+def test_checkout_no_user(client):
+    """
+    Test /api/checkout/<email> when the user is not registered.
+    Expected to return 404.
+    """
+    email = "checkout_nouser@example.com"
+    # Setup: create a shopping cart without registering the user.
+    cart = app.ShoppingCart()
+    app.shopping_carts[email] = cart
+
+    response = client.post(
+        f"/api/checkout/{email}",
+        json={"payment_method": "credit_card", "address": "123 Checkout St"}
+    )
+    assert response.status_code == 404
+    data = response.get_json()
+    assert "User not found." in data["error"]
+
+def test_checkout_finalization_failure(client):
+    """
+    Test /api/checkout/<email> where order finalization fails.
+    Simulated by adding a LeafItem with a name that does not match any furniture in inventory.
+    Expected to return 400.
+    """
+    email = "checkout_fail@example.com"
+    user = app.User("Test Checkout Fail", email, "dummyhash")
+    app.User._users[email] = user
+    cart = app.ShoppingCart()
+    # Create a LeafItem referencing non-existent furniture.
+    leaf_item = LeafItem("NonExistentFurniture", 100.0, quantity=1)
+    cart.add_item(leaf_item)
+    app.shopping_carts[email] = cart
+
+    response = client.post(
+        f"/api/checkout/{email}",
+        json={"payment_method": "credit_card", "address": "456 Fail St"}
+    )
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "Checkout process failed" in data["error"]
+
+def test_checkout_success(client):
+    """
+    Test a successful checkout:
+      - Create a furniture item (Chair) and add it to the inventory.
+      - Register a user and create a shopping cart.
+      - Add a LeafItem referencing the furniture.
+      - Expect a 200 response and a valid order summary.
+    """
+    email = "checkout_success@example.com"
+    user = app.User("Test Checkout Success", email, "dummyhash")
+    app.User._users[email] = user
+    cart = app.ShoppingCart()
+    app.shopping_carts[email] = cart
+
+    # Create a concrete furniture item using the Chair class.
+    # Adjust parameters as required by your Chair implementation.
+    furniture_item = app.Chair("Test Furniture", "A test chair", 150.0, (50, 50, 100), "foam")
+    furniture_item.id = 555  # Manually assign an id for testing.
+    app.inventory.items[furniture_item] = 10  # Set available quantity.
+
+    # Add a LeafItem referencing the furniture.
+    # The Checkout endpoint will try to find the matching furniture
+    # by comparing the LeafItem name (here, the chair's name) with inventory.
+    leaf_item = app.LeafItem(furniture_item.name, furniture_item.price, quantity=1)
+    cart.add_item(leaf_item)
+
+    response = client.post(
+        f"/api/checkout/{email}",
+        json={"payment_method": "credit_card", "address": "123 Success Ave"}
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "Order finalized successfully." in data["message"]
+    assert "order_summary" in data
