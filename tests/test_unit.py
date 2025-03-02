@@ -52,7 +52,7 @@ def test_create_order(client):
     3) Create an order for that user via POST /api/orders.
     4) Ensure status code 201 and that order_id is in the returned JSON.
     """
-    # Create a furniture item (assumed id will be 1)
+    # Create a furniture item and capture its id
     response = client.post(
         "/api/inventory",
         json={
@@ -65,7 +65,10 @@ def test_create_order(client):
             "cushion_material": "foam"
         },
     )
-    assert response.status_code == 201
+    assert response.status_code == 201, f"Furniture creation failed: {response.status_code}"
+    furniture_data = response.get_json()
+    furniture_id = furniture_data.get("id")
+    assert furniture_id is not None, "Furniture id not returned"
 
     # Register user
     response = client.post(
@@ -76,19 +79,20 @@ def test_create_order(client):
             "password": "orderpassword",
         },
     )
-    assert response.status_code == 201
+    assert response.status_code == 201, f"User registration failed: {response.status_code}"
 
-    # Create order referencing furniture_id 1
+    # Create order referencing the actual furniture_id
     response = client.post(
         "/api/orders",
         json={
             "user_email": "orderuser@example.com",
-            "items": [{"furniture_id": 1, "quantity": 2}]
+            "items": [{"furniture_id": furniture_id, "quantity": 2}]
         },
     )
-    assert response.status_code == 201
+    assert response.status_code == 201, f"Order creation failed: {response.status_code}"
     order = response.get_json()
-    assert "order_id" in order
+    assert "order_id" in order, "order_id not present in order response"
+
 
 
 def test_update_profile(client):

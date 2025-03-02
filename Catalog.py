@@ -589,8 +589,22 @@ class Checkout:
         return []
 
     def _find_furniture_by_name(self, name: str) -> Optional[Furniture]:
+        """
+        First, attempt to convert the LeafItem name to an integer to match by id.
+        If conversion fails, fall back to matching by the furniture's name.
+        """
+        # Try matching by id if the name is numeric.
+        try:
+            target_id = int(name)
+            for furniture_item in self.inventory.items.keys():
+                if hasattr(furniture_item, "id") and furniture_item.id == target_id:
+                    return furniture_item
+        except ValueError:
+            pass  # Not an integer, proceed to match by name.
+
+        # Fallback: match by furniture name.
         for furniture_item in self.inventory.items.keys():
-            if furniture_item.name == name:
+            if hasattr(furniture_item, "name") and furniture_item.name == name:
                 return furniture_item
         return None
 
