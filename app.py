@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+import os
 import logging
 import pandas as pd
 # Import furniture classes and the Inventory singleton from catalog.py
