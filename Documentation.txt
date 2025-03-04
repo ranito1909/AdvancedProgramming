@@ -1,0 +1,141 @@
+Project Design Document: Furniture Store API
+
+1. Overview
+--------------------------------------------------------------------------------------------------------
+The Furniture Store is an application designed to manage a furniture store’s operations.
+The API provides endpoints for inventory management, user registration and profile updates,
+shopping cart functionality, and order processing (including checkout).
+The project leverages Flask for the web framework and uses Pandas for in-memory data persistence.
+It is built with a focus on scalability and maintainability by utilizing several proven design patterns.
+
+
+2. Design Evolution and Changes
+--------------------------------------------------------------------------------------------------------
+
+
+
+
+
+3. How to Run the Application
+--------------------------------------------------------------------------------------------------------
+Prerequisites:
+- Python 3.7 or later.
+- Required Libraries: Flask, Pandas, and Pytest.
+Setup and Execution:
+1. Install Dependencies:
+   $ pip install flask pandas pytest
+2. Run the API Server:
+   $ python app.py
+3. Running the Tests:
+- Install pytest:
+   $ pip install pytest
+- Run all tests:
+   $ pytest
+
+
+4. Main API Use Cases and Example Calls
+--------------------------------------------------------------------------------------------------------
+Use Case 1: Register a New User
+- Endpoint: POST /api/users
+- Request Body:
+{
+  "email": "john.doe@example.com",
+  "name": "John Doe",
+  "password": "securepassword",
+  "address": "123 Main St"
+}
+- Outcome: Response with status code 201 and user details confirming registration.
+
+Use Case 2: Add a Furniture Item to Inventory
+- Endpoint: POST /api/inventory
+- Request Body (Example for a Chair):
+{
+  "type": "Chair",
+  "name": "Modern Chair",
+  "description": "A comfortable modern chair.",
+  "price": 150.0,
+  "dimensions": [45, 45, 90],
+  "quantity": 10,
+  "cushion_material": "leather"
+}
+- Outcome: Item added to inventory with status code 201 and a unique furniture ID.
+
+Use Case 3: Update the Shopping Cart (with Discount)
+- Endpoint: PUT /api/cart/<email>
+- Request Body:
+{
+  "items": [
+    {"furniture_id": 1, "quantity": 2},
+    {"furniture_id": 3, "quantity": 1, "discount": 10}
+  ]
+}
+- Outcome: Updated cart returned with status code 200, including updated items and total price.
+
+Use Case 4: Create an Order
+- Endpoint: POST /api/orders
+- Request Body:
+{
+  "user_email": "john.doe@example.com",
+  "items": [
+    {"furniture_id": 1, "quantity": 2}
+  ]
+}
+- Outcome: Order created with status code 201, returning an order summary and unique order ID.
+
+Use Case 5: Checkout Process
+- Endpoint: POST /api/checkout/<email>
+- Request Body:
+{
+  "payment_method": "credit_card",
+  "address": "123 Main St"
+}
+- Outcome: Checkout finalizes the order, returning status code 200 with an order summary detailing items, total price, payment method, and shipping address.
+
+
+5. Design Patterns Used in the Project
+--------------------------------------------------------------------------------------------------------
+
+5.1 Singleton Pattern
+Usage:
+The Inventory class is implemented as a Singleton.
+Explanation:
+This design pattern ensures that only one instance of the Inventory exists throughout the application.
+This centralizes the management of furniture items, avoiding conflicts and ensuring consistency in inventory
+data across different parts of the application.
+Implementation:
+The Inventory.get_instance() method is used to either create or retrieve the existing Inventory instance.
+
+5.2 Composite Pattern
+Usage:
+The Shopping Cart is implemented using the Composite design pattern through the use of CompositeItem
+and LeafItem.
+Explanation:
+This pattern allows treating individual items (leaf components) and groups or bundles of items
+(composite components) uniformly. It simplifies operations like calculating the total price of the shopping
+cart, as the cart can consist of both single items and bundles.
+Implementation:
+The ShoppingCart class contains a CompositeItem (acting as the root), which aggregates multiple LeafItem
+instances. Each LeafItem represents an individual item in the cart.
+
+5.3 Factory Pattern
+Usage:
+The Furniture Creation process uses a Factory-like approach.
+Explanation:
+A mapping (the FURNITURE_MAP) from string identifiers (e.g., "Chair", "Table") to corresponding furniture
+classes enables dynamic creation of different furniture types based on the input. 
+This approach abstracts the instantiation process and allows for easy expansion by adding new furniture
+types without altering the endpoint logic.
+Implementation:
+In the /api/inventory POST endpoint, the input "type" is used to select the correct class from FURNITURE_MAP
+and instantiate the furniture object with its specific parameters.
+
+
+
+6. Conclusion
+-----------------
+This document details the design evolution of the Furniture Store from its initial implementation to the final
+modular and well-patterned architecture.
+It includes clear instructions on running the application and tests, along with the main API use cases.
+The project leverages proven design patterns (Singleton, Composite, and Factory) to ensure scalability,
+maintainability, and clarity of the codebase.
+"""
