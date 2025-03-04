@@ -144,6 +144,8 @@ def create_order():
     items = data.get("items", [])
     if not isinstance(items, list):
         return jsonify({"error": "items must be a list"}), 400
+    if not items:
+        return jsonify({"error": "Order items cannot be empty"}), 400
 
     leaf_items = []
     total_price = 0.0
@@ -376,10 +378,23 @@ def create_furniture():
 
     furniture_class = FURNITURE_MAP[ftype]
     args = [name, description, price, dimensions]
-    if cushion_material is not None:
-        args.append(cushion_material)
-    new_furniture = furniture_class(*args)
 
+    # Map extra parameter requirements for each furniture type.
+    extra_field_defaults = {
+        "Chair": ("cushion_material", "default_cushion"),
+        "Table": ("frame_material", "default_frame"),
+        "Sofa": ("cushion_material", "default_cushion"),
+        "Lamp": ("light_source", "default_light_source"),
+        "Shelf": ("wall_mounted", "default_wall_mounted")
+    }
+
+    if ftype in extra_field_defaults:
+        extra_field, default_val = extra_field_defaults[ftype]
+        if extra_field:
+            extra_value = data.get(extra_field, default_val)
+            args.append(extra_value)
+
+    new_furniture = furniture_class(*args)
     new_furniture.id = next_furniture_id
     next_furniture_id += 1
 
