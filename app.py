@@ -371,7 +371,6 @@ def create_furniture():
     price = data.get("price", 0.0)
     dimensions = tuple(data.get("dimensions", []))
     quantity = data.get("quantity", 1)
-    cushion_material = data.get("cushion_material", None)
 
     if ftype not in FURNITURE_MAP:
         return jsonify({"error": f"Invalid furniture type: {ftype}"}), 400
