@@ -30,14 +30,94 @@ furniture_df= pd.DataFrame(columns=["id", "name", "description", "price", "dimen
 next_furniture_id = 1
 
 # "Save" functions (simulate persistence)
-def save_orders():
-    pass
+def save_orders(orders_df, filename="orders.pkl", storage_dir="storage"):
+    """
+    Persist the orders DataFrame to a pickle file.
+    
+    Args:
+        orders_df (pd.DataFrame): The DataFrame containing all order data.
+        filename (str): The name of the file in which to store the orders (default "orders.pkl").
+        storage_dir (str): The directory where the pickle file is saved.
+            This parameter lets you choose where to store the data. For example, you might use a
+            single "storage" folder for all persisted data, or later organize data into subdirectories
+            (like "storage/orders" for orders, "storage/users" for user data, etc.).
+    
+    This function converts the orders data into a pickle file so that it can be reloaded later
+    without loss. It is consistent with other persistence functions in our project.
+    """
+    if not os.path.exists(storage_dir):
+        os.makedirs(storage_dir)
+    filepath = os.path.join(storage_dir, filename)
+    orders_df.to_pickle(filepath)
+    print(f"Orders saved to {filepath}")
 
-def save_users():
-    pass
+def save_users(users_dict, filename="users.pkl", storage_dir="storage"):
+    """
+    Save the current users stored in the User._users dictionary to a pickle file.
+    
+    Args:
+        users_dict (dict): The dictionary containing user instances (typically User._users).
+        filename (str): The name of the pickle file.
+        storage_dir (str): The directory where the pickle file is saved.
+    """
+    if not os.path.exists(storage_dir):
+        os.makedirs(storage_dir)
+    
+    # Convert the users dictionary to a list of simple dictionaries.
+    users_list = []
+    for email, user in users_dict.items():
+        users_list.append({
+            "email": user.email,
+            "name": user.name,
+            "password_hash": user.password_hash,
+            "address": user.address,
+            "order_history": user.order_history
+        })
+    
+    users_df = pd.DataFrame(users_list)
+    filepath = os.path.join(storage_dir, filename)
+    users_df.to_pickle(filepath)
+    print(f"Users saved to {filepath}")
 
-def save_cart():
-    pass
+def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
+    """
+    Persist the current shopping carts to a pickle file.
+    
+    Args:
+        shopping_carts (dict): A dictionary mapping user emails to ShoppingCart instances.
+        filename (str): The name of the file in which to store the cart data (default "cart.pkl").
+        storage_dir (str): The directory where the pickle file is saved.
+            You can choose to store all data in one folder or organize into subdirectories
+            (e.g., "storage/cart" for cart data).
+    
+    This function converts the shopping cart information into a list of dictionaries.
+    Each dictionary contains the user email, a list of items (with their furniture_id, quantity, 
+    and unit_price), and the total price of the cart. The resulting list is then converted to a 
+    pandas DataFrame and saved as a pickle file.
+    """
+    if not os.path.exists(storage_dir):
+        os.makedirs(storage_dir)
+    
+    carts_list = []
+    for email, cart in shopping_carts.items():
+        items = []
+        for item in cart.root._children:
+            # We assume that the item.name holds the furniture_id, as set in update_cart().
+            items.append({
+                "furniture_id": item.name,
+                "quantity": item.quantity,
+                "unit_price": item.unit_price
+            })
+        carts_list.append({
+            "user_email": email,
+            "items": items,
+            "total_price": cart.get_total_price()
+        })
+    
+    carts_df = pd.DataFrame(carts_list)
+    filepath = os.path.join(storage_dir, filename)
+    carts_df.to_pickle(filepath)
+    print(f"Cart data saved to {filepath}")
 
 def save_inventory(inventory_instance):
     data = []
@@ -598,3 +678,4 @@ if __name__ == "__main__":  # pragma: no cover
 
     # Start the Flask app in debug mode.
     app.run(debug=True)
+
