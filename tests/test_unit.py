@@ -57,6 +57,7 @@ def test_create_order(client):
     response = client.post(
         "/api/inventory",
         json={
+            "id": 1,
             "type": "Chair",
             "name": "Test Chair",
             "description": "A test chair for order creation",
@@ -150,7 +151,7 @@ def test_update_cart(client):
     3) Verify both operations succeed with status_code 200.
     """
     email = "cartupdate@example.com"
-    dummy_item = app.Chair("Dummy Chair", "For testing", 100.0, (30, 30, 30), "foam")
+    dummy_item = app.Chair(1, "Dummy Chair", "For testing", 100.0, (30, 30, 30), "foam")
     dummy_item.id = 10
     app.inventory.items[dummy_item] = 10
 
@@ -183,7 +184,7 @@ def test_update_inventory(client):
     4) Ensure changes are reflected in the response.
     """
     # Create a dummy Table item; supply required parameter "wood" for frame_material.
-    dummy = Table("Test Table", "A test table", 100.0, (50, 50, 30), "wood")
+    dummy = Table(2, "Test Table", "A test table", 100.0, (50, 50, 30), "wood")
     dummy.id = 999
     app.inventory.add_item(dummy, 10)
     app.furniture_df = app.save_inventory(app.inventory)
@@ -227,7 +228,7 @@ def test_delete_inventory(client):
     4) Try updating it => expect 404.
     """
     # Create a dummy Chair item; supply required parameter "foam" for cushion_material.
-    dummy = Chair("Delete Chair", "Chair to be deleted", 75.0, (40, 40, 90), "foam")
+    dummy = Chair(1, "Delete Chair", "Chair to be deleted", 75.0, (40, 40, 90), "foam")
     dummy.id = 888
     app.inventory.add_item(dummy, 1)
     app.furniture_df = app.save_inventory(app.inventory)
@@ -369,7 +370,7 @@ def test_checkout_success(client):
 
     # Create a concrete furniture item using the Chair class.
     # Adjust parameters as required by your Chair implementation.
-    furniture_item = app.Chair("Test Furniture", "A test chair", 150.0, (50, 50, 100), "foam")
+    furniture_item = app.Chair(1, "Test Furniture", "A test chair", 150.0, (50, 50, 100), "foam")
     furniture_item.id = 555  # Manually assign an id for testing.
     app.inventory.items[furniture_item] = 10  # Set available quantity.
 
