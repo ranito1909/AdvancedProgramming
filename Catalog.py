@@ -246,6 +246,7 @@ class Inventory:
         if Inventory._instance is not None:
             raise Exception("Inventory is a singleton. Use Inventory.get_instance() instead.")
         self.items: Dict[Furniture, int] = {}
+        self.next_furniture_id = 1
         # Load persistent inventory data on initialization
         self.load_inventory()
         Inventory._instance = self
@@ -272,6 +273,11 @@ class Inventory:
         filepath = os.path.join(storage_dir, filename)
         if os.path.exists(filepath):
             inventory_df = pd.read_pickle(filepath)
+            if not inventory_df.empty:
+                # Find the largest ID in the DataFrame
+                max_id = inventory_df["id"].max()
+                if pd.notna(max_id):
+                    self.next_furniture_id = int(max_id) + 1
             for _, row in inventory_df.iterrows():
                 furniture_class_name = row["class"]
                 # Reconstruct the furniture object based on its type.
@@ -301,6 +307,14 @@ class Inventory:
         else:
             print(f"No persisted inventory file found at {filepath}. Starting with an empty inventory.")
 
+    def get_next_furniture_id(self) -> int:
+        """
+        Return the current next_furniture_id and then increment it.
+        """
+        current_id = self.next_furniture_id
+        self.next_furniture_id += 1
+        return current_id
+    
     def add_item(self, furniture: Furniture, quantity: int = 1) -> None:
         """
         Add or update a furniture item in the inventory.
