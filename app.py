@@ -27,7 +27,6 @@ orders_df = pd.DataFrame(columns=["order_id", "user_email", "items"])
 users_df = pd.DataFrame(columns=["email", "name", "password_hash", "address", "order_history"])
 cart_df = pd.DataFrame(columns=["user_email", "items"])
 furniture_df= pd.DataFrame(columns=["id", "name", "description", "price", "dimensions", "class", "quantity"])
-next_furniture_id = 1
 
 # "Save" functions (simulate persistence)
 def save_orders(orders_df, filename="orders.pkl", storage_dir="storage"):
@@ -479,7 +478,6 @@ def create_furniture():
       "quantity": 10
     }
     """
-    global next_furniture_id
     data = request.get_json() or {}
     ftype = data.get("type")
     name = data.get("name", "")
@@ -510,8 +508,7 @@ def create_furniture():
             args.append(extra_value)
 
     new_furniture = furniture_class(*args)
-    new_furniture.id = next_furniture_id
-    next_furniture_id += 1
+    new_furniture.id = inventory.get_next_furniture_id()
 
     inventory.add_item(new_furniture, quantity)
     save_inventory(inventory)
