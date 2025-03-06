@@ -101,9 +101,8 @@ def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
     for email, cart in shopping_carts.items():
         items = []
         for item in cart.root._children:
-            # We assume that the item.name holds the furniture_id, as set in update_cart().
             items.append({
-                "furniture_id": item.name,
+                "furniture_id": item.id,
                 "quantity": item.quantity,
                 "unit_price": item.unit_price
             })
@@ -206,6 +205,48 @@ def get_users():
 # ---------------------------
 # POST Endpoints
 # ---------------------------
+@app.route("/api/inventorysearch", methods=["POST"])
+def inventory_search():
+    """
+    Search inventory based on parameters in the request body.
+    Expected JSON body fields:
+      - name_substring (optional string)
+      - min_price (optional float)
+      - max_price (optional float)
+      - furniture_type (optional string)
+    """
+    data = request.get_json() or {}
+
+    name_substring = data.get("name_substring")
+    min_price = data.get("min_price")
+    max_price = data.get("max_price")
+    furniture_type_str = data.get("furniture_type")
+
+    # Optionally log incoming data for debugging
+    logging.debug(f"Inventory search parameters: {data}")
+
+
+    # Run the inventory search
+    inventory = Inventory.get_instance()
+    search_results = inventory.search(
+        name_substring=name_substring,
+        min_price=min_price,
+        max_price=max_price,
+        furniture_type=furniture_type_str,
+    )
+
+    # Convert results to a list of dicts if needed
+    # or you can return them directly if they are JSON serializable
+    output = []
+    for item in search_results:
+        output.append({
+            "name": item.name,
+            "price": item.price,
+            "quantity": inventory.get_quantity(item)
+        })
+
+    return jsonify(output), 200
+
 @app.route("/api/users", methods=["POST"])
 def register_user():
     """
@@ -469,8 +510,8 @@ def create_furniture():
     """
     Create a new furniture item.
     Expected JSON:
-    {
-      "type": "Chair" or "Table" or "Sofa" or "Lamp" or "Shelf",
+    { "id" : unique(id),
+      "class": "Chair" or "Table" or "Sofa" or "Lamp" or "Shelf",
       "name": "...",
       "description": "...",
       "price": 123.45,
@@ -511,6 +552,7 @@ def create_furniture():
     new_furniture.id = inventory.get_next_furniture_id()
 
     inventory.add_item(new_furniture, quantity)
+
     save_inventory(inventory)
 
     return jsonify({
@@ -535,7 +577,7 @@ def delete_inventory(furniture_id):
             break
     if found_item is None:
         return jsonify({"error": "Furniture item not found"}), 404
-
+    
     current_qty = inventory.items.get(found_item, 0)
     inventory.remove_item(found_item, quantity=current_qty)
     save_inventory(inventory)
@@ -612,6 +654,7 @@ if __name__ == "__main__":  # pragma: no cover
         inv_response = client.post(
             "/api/inventory",
             json={
+                "id": 1,    
                 "type": "Chair",
                 "name": "Regression Chair",
                 "description": "A chair for regression test",
@@ -683,6 +726,14 @@ if __name__ == "__main__":  # pragma: no cover
         )
         print("Cart Update User Registration:", cart_update_user_response.get_json())
 
+        search_response = client.post(
+            "/api/inventorysearch",
+            json={"name_substring": "Chair",
+                  "min_price": 50.0,
+                  "max_price": 100.0,
+                  "furniture_type": "Chair"}
+        )
+        print("Search Results:", search_response.get_json())
         # --- Add Inventory Item for Cart Update User Checkout ---
         # This item will be used in the cart so that checkout can find it in the inventory.
         inventory_cart_response = client.post(
