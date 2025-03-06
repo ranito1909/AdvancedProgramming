@@ -351,6 +351,8 @@ def update_cart(email):
     for item in items:
         furniture_id = item.get("furniture_id")
         quantity = item.get("quantity", 1)
+        discount = item.get("discount", 0)  # Default 0 if not provided
+
         # Try to get the unit_price from the payload; if not provided, lookup from inventory.
         unit_price = item.get("unit_price")
         if unit_price is None:
@@ -367,6 +369,13 @@ def update_cart(email):
         
         # Create the LeafItem using the valid unit_price.
         leaf_item = LeafItem(name=str(furniture_id), unit_price=float(unit_price), quantity=int(quantity))
+
+        try:
+            leaf_item.apply_discount(discount)
+        except ValueError as e:
+            # For example, discount > 100 raises ValueError. Return 400 with the error message.
+            return jsonify({"error": str(e)}), 400
+        
         cart.add_item(leaf_item)
         app.logger.debug("[DEBUG] update_cart: Added item: %s", leaf_item)
 
@@ -378,6 +387,7 @@ def update_cart(email):
             "quantity": child.quantity
         })
     app.logger.debug("[DEBUG] update_cart: Cart updated for email %s with total price: %.2f", email, total_price)
+
     return jsonify({"user_email": email, "items": response_items, "total_price": total_price}), 200
 
 
