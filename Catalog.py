@@ -361,8 +361,6 @@ class Inventory:
                 continue
             if max_price is not None and item.price > max_price:
                 continue
-            if furniture_type and not isinstance(item, furniture_type):
-                continue
             results.append(item)
         return results
 
