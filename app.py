@@ -390,6 +390,45 @@ def checkout(email):
     app.logger.debug("[DEBUG] checkout: Order finalized for user %s with summary: %s", email, order_summary)
     return jsonify({"message": "Order finalized successfully.", "order_summary": order_summary}), 200
 
+@app.route("/api/cart/<string:email>/remove", methods=["POST"])
+def remove_cart_item(email: str):
+    """
+    Remove an item from the shopping cart by creating a LeafItem from request data
+    and calling remove_item on the cart.
+    """
+    data = request.get_json() or {}
+
+    item_id = data.get("item_id")
+    unit_price = data.get("unit_price")
+    quantity = data.get("quantity")
+
+    if not item_id:
+        return jsonify({"error": "Missing item_id in request data"}), 400
+    if unit_price is None:
+        return jsonify({"error": "Missing unit_price in request data"}), 400
+    if quantity is None:
+        return jsonify({"error": "Missing quantity in request data"}), 400
+
+    if email not in shopping_carts:
+        return jsonify({"error": "Shopping cart not found for user"}), 404
+
+    # Create a LeafItem using the incoming data
+    leaf_item = LeafItem(
+        name=str(item_id),
+        unit_price=float(unit_price),
+        quantity=int(quantity)
+    )
+
+    cart = shopping_carts[email]
+    cart.remove_item(leaf_item)
+
+    app.logger.debug("[DEBUG] remove_item from cart: Removed item %s from cart for user %s", item_id, email)
+    return jsonify({
+        "message": "Item removed from cart",
+        "total_price": cart.get_total_price()
+    }), 200
+
+
 # ---------------------------
 # PUT Endpoints
 # ---------------------------
@@ -726,16 +765,19 @@ if __name__ == "__main__":  # pragma: no cover
         )
         print("Cart Update User Registration:", cart_update_user_response.get_json())
 
+        # --- Search Inventory (for Chairs) ---
         search_response = client.post(
             "/api/inventorysearch",
-            json={"name_substring": "Chair",
-                  "min_price": 50.0,
-                  "max_price": 100.0,
-                  "furniture_type": "Chair"}
+            json={
+                "name_substring": "Chair",
+                "min_price": 50.0,
+                "max_price": 100.0,
+                "furniture_type": "Chair"
+            }
         )
         print("Search Results:", search_response.get_json())
+
         # --- Add Inventory Item for Cart Update User Checkout ---
-        # This item will be used in the cart so that checkout can find it in the inventory.
         inventory_cart_response = client.post(
             "/api/inventory",
             json={
@@ -752,17 +794,58 @@ if __name__ == "__main__":  # pragma: no cover
         furniture_id_cartupdate = inventory_cart_data.get("id")
         print("Inventory for Cart Update:", inventory_cart_data)
 
-        # --- Update Shopping Cart for cartupdate@example.com using the valid furniture id ---
+        # --- Update Shopping Cart for cartupdate@example.com ---
         cart_response_initial = client.put(
             f"/api/cart/cartupdate@example.com",
             json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 3}]}
         )
         print("Initial Cart Update:", cart_response_initial.get_json())
+
         cart_response_updated = client.put(
             f"/api/cart/cartupdate@example.com",
             json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 5}]}
         )
         print("Updated Cart:", cart_response_updated.get_json())
+        cart_response_initial = client.put(
+            f"/api/cart/cartupdate@example.com",
+            json={
+                "items": [
+                    {
+                        "furniture_id": furniture_id_cartupdate,  
+                        "quantity": 3,                                                       
+                        "unit_price": 100.0                     
+                    }
+                ]
+            }
+        )
+        print("Initial Cart Update:", cart_response_initial.get_json())
+
+        # You could make a second update call, e.g., changing quantity or applying a discount
+        cart_response_updated = client.put(
+            f"/api/cart/cartupdate@example.com",
+            json={
+                "items": [
+                    {
+                        "furniture_id": furniture_id_cartupdate,  
+                        "quantity": 5,
+                        "unit_price": 300.0   # explicitly set the price
+                    }
+                ]
+            }
+        )
+        print("Updated Cart:", cart_response_updated.get_json())
+
+        # --- Remove Item from Cart for cartupdate@example.com ---
+        remove_item_response = client.post(
+        f"/api/cart/cartupdate@example.com/remove",
+        json={
+        "item_id": furniture_id_cartupdate,   # e.g., 101
+        "unit_price": 300.0,
+        "quantity": 3
+                }
+        )
+        print("Remove Item from Cart:", remove_item_response.get_json())
+
 
         # --- Checkout Process for cartupdate@example.com ---
         checkout_payload = {"payment_method": "credit_card", "address": "123 Test St"}
@@ -773,6 +856,5 @@ if __name__ == "__main__":  # pragma: no cover
         orders_response = client.get("/api/orders")
         print("All Orders:", orders_response.get_json())
 
-    # Start the Flask app in debug mode.
+    # Finally, start your Flask app
     app.run(debug=True)
-

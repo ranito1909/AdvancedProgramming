@@ -523,7 +523,23 @@ class CompositeItem(CartComponent):
         self._children.append(component)
 
     def remove(self, component: CartComponent) -> None:
-        self._children.remove(component)
+        """
+        Attempt to remove 'component' from the children list.
+        If not present, log the current list contents instead of raising ValueError.
+        """
+        try:
+            self._children.remove(component)
+        except ValueError:
+            # Log or print a helpful message
+            print(f"[DEBUG] remove: Attempted to remove {component}, but it wasn't found.")
+            print("[DEBUG] remove: Current _children are:")
+            for child in self._children:
+                print(f"  - {child}")
+            
+            # Optionally, you could raise a custom exception or return
+            # raise RuntimeError(f"Failed to remove {component}, not in the list.")
+            return
+
 
     def get_price(self) -> float:
         return sum(child.get_price() for child in self._children)
@@ -568,7 +584,6 @@ class ShoppingCart:
             lines.append(f"- Item: {component}, Price: {component.get_price():.2f}")
         lines.append(f"\nTotal price: {self.get_total_price():.2f}")
         return "\n".join(lines)
-
 # --------------------------------------------------------------------
 # Checkout
 # --------------------------------------------------------------------
