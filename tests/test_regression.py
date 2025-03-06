@@ -13,8 +13,9 @@ def clear_domain_state():
     yield
 
 @pytest.mark.parametrize("furniture_data", [
-    {"type": "Chair", "name": "Test Chair", "price": 120.0, "quantity": 5, "cushion_material": "foam"},
-    {"type": "Table", "name": "Test Table", "price": 250.0, "quantity": 3, "frame_material": "wood"}
+    {"id": 1, "name": "Test Chair", "description": "Red chair", "price": 100.0, "dimensions": [40, 40, 90], "type": "Chair", "quantity": 5, "cushion_material": "foam"},
+    {"id": 2, "name": "Test Table", "description": "Blue table", "price": 250.0, "dimensions": [50, 50, 100], "type": "Table", "quantity": 3, "frame_material": "wood"},
+
 ])
 def test_furniture_creation_and_retrieval(client, furniture_data):
     response = client.post("/api/inventory", json=furniture_data)
@@ -65,12 +66,13 @@ def test_discount_application(client):
 
     # Create an inventory item first.
     inv_response = client.post("/api/inventory", json={
-        "type": "Chair",
+        "id": 3,
         "name": "Discount Chair",
         "description": "Discount test chair",
-        "price": 100.0,
-        "dimensions": [40, 40, 90],
-        "quantity": 10,
+        "price": 100.0, 
+        "dimensions": [40, 40, 90], 
+        "type": "Chair", 
+        "quantity": 10, 
         "cushion_material": "foam"
     })
     discount_item = inv_response.get_json()
