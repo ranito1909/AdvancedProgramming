@@ -119,9 +119,28 @@ def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
     carts_df.to_pickle(filepath)
     print(f"Cart data saved to {filepath}")
 
-def save_inventory(inventory_instance):
+def save_inventory(inventory_instance, filename="inventory.pkl", storage_dir="storage"):
+    """
+    Persist the current inventory from the Inventory singleton to a pickle file.
+
+    Args:
+        inventory_instance: The Inventory instance containing the furniture items and their quantities.
+        filename (str): The name of the pickle file in which to store the inventory data (default "inventory.pkl").
+        storage_dir (str): The directory where the pickle file is saved.
+            This parameter lets you choose where to store the data. For example, you might use a
+            dedicated folder for inventory data (e.g., "storage/inventory") if desired.
+
+    Returns:
+        pd.DataFrame: The DataFrame created from the inventory data.
+
+    This function converts the inventory data (stored as a dictionary mapping Furniture objects to their available quantities)
+    into a pandas DataFrame and saves it as a pickle file. It ensures that the storage directory exists before saving.
+    """
+    if not os.path.exists(storage_dir):
+        os.makedirs(storage_dir)
+    
     data = []
-    # inventory_instance.items is a dict: {Furniture: quantity}
+    # Loop through each furniture item and its quantity to build a list of dictionaries.
     for furniture, quantity in inventory_instance.items.items():
         data.append({
             "id": getattr(furniture, "id", None),
@@ -132,7 +151,13 @@ def save_inventory(inventory_instance):
             "class": furniture.__class__.__name__,
             "quantity": quantity
         })
-    return pd.DataFrame(data)
+
+    inventory_df = pd.DataFrame(data)
+    filepath = os.path.join(storage_dir, filename)
+    inventory_df.to_pickle(filepath)
+    print(f"Inventory saved to {filepath}")
+    
+    return inventory_df
 
 
 # ---------------------------
