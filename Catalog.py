@@ -24,7 +24,8 @@ class Furniture(ABC):
         price (float): The base price before discounts/taxes.
         dimensions (Tuple[float, ...]): Dimensions (e.g., width, depth, height).
     """
-    def __init__(self, name: str, description: str, price: float, dimensions: Tuple[float, ...]) -> None:
+    def __init__(self, id: int, name: str, description: str, price: float, dimensions: Tuple[float, ...]) -> None:
+        self.id = id
         self.name = name
         self.description = description
         self.price = price
