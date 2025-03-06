@@ -1,5 +1,6 @@
 import pytest
 import app
+import pandas as pd
 
 @pytest.fixture(autouse=True)
 def clear_domain_state():
