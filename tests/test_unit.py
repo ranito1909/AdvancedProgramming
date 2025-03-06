@@ -94,7 +94,29 @@ def test_create_order(client):
     order = response.get_json()
     assert "order_id" in order, "order_id not present in order response"
 
+def test_search(client):
+    """
+    Sends a POST request to /api/inventorysearch
+    and verifies the response.
+    """
+    # Example payload to find chairs priced between $50 and $100
+    payload = {
+        "name_substring": "Test Chair",
+        "min_price": 74,
+        "max_price": 76
+    }
 
+    response = client.post("/api/inventorysearch", json=payload)
+    assert response.status_code == 200
+
+    data = response.get_json()
+    assert isinstance(data, list), "Response should be a list"
+    assert len(data) == 1, "Should only match 1 item (Test Chair)"
+
+    result_item = data[0]
+    assert result_item["name"] == "Test Chair"
+    assert result_item["price"] == 75
+    assert result_item["quantity"] == 3
 
 def test_update_profile(client):
     """

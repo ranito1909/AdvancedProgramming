@@ -1,5 +1,6 @@
 import pytest
 import app
+import pandas as pd
 
 @pytest.fixture(autouse=True)
 def clear_domain_state():
@@ -88,3 +89,31 @@ def test_discount_application(client):
         "address": "789 Discount Blvd"
     })
     assert response.status_code == 200
+
+def test_create_furniture_persistence(client):
+    """
+    Test that when create_furniture is called, the inventory persistence file is updated.
+    """
+    # Send POST request to create a new furniture item.
+    response = client.post(
+        "/api/inventory",
+        json={
+            "type": "Chair",
+            "name": "Automated Test Chair",
+            "description": "A chair created during automated testing",
+            "price": 85.0,
+            "dimensions": [35, 35, 90],
+            "quantity": 7,
+            "cushion_material": "memory foam"
+        }
+    )
+    # Assert that the response indicates success.
+    assert response.status_code == 201, f"Expected 201, got {response.status_code}"
+    
+    # Now, simulate a 'restart' by loading the persisted inventory file.
+    inventory_df = pd.read_pickle("storage/inventory.pkl")
+    
+    # Verify that the DataFrame contains the new furniture item.
+    # For example, check that the new item is in the DataFrame by name.
+    new_item = inventory_df[inventory_df["name"] == "Automated Test Chair"]
+    assert not new_item.empty, "Automated Test Chair not found in the persisted inventory."

@@ -27,7 +27,7 @@ orders_df = pd.DataFrame(columns=["order_id", "user_email", "items"])
 users_df = pd.DataFrame(columns=["email", "name", "password_hash", "address", "order_history"])
 cart_df = pd.DataFrame(columns=["user_email", "items"])
 furniture_df= pd.DataFrame(columns=["id", "name", "description", "price", "dimensions", "class", "quantity"])
-next_furniture_id = 1
+next_furniture_id = 1 ###last value from the df +1
 
 # "Save" functions (simulate persistence)
 def save_orders(orders_df, filename="orders.pkl", storage_dir="storage"):
@@ -102,9 +102,8 @@ def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
     for email, cart in shopping_carts.items():
         items = []
         for item in cart.root._children:
-            # We assume that the item.name holds the furniture_id, as set in update_cart().
             items.append({
-                "furniture_id": item.name,
+                "furniture_id": item.id,
                 "quantity": item.quantity,
                 "unit_price": item.unit_price
             })
@@ -119,9 +118,28 @@ def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
     carts_df.to_pickle(filepath)
     print(f"Cart data saved to {filepath}")
 
-def save_inventory(inventory_instance):
+def save_inventory(inventory_instance, filename="inventory.pkl", storage_dir="storage"):
+    """
+    Persist the current inventory from the Inventory singleton to a pickle file.
+
+    Args:
+        inventory_instance: The Inventory instance containing the furniture items and their quantities.
+        filename (str): The name of the pickle file in which to store the inventory data (default "inventory.pkl").
+        storage_dir (str): The directory where the pickle file is saved.
+            This parameter lets you choose where to store the data. For example, you might use a
+            dedicated folder for inventory data (e.g., "storage/inventory") if desired.
+
+    Returns:
+        pd.DataFrame: The DataFrame created from the inventory data.
+
+    This function converts the inventory data (stored as a dictionary mapping Furniture objects to their available quantities)
+    into a pandas DataFrame and saves it as a pickle file. It ensures that the storage directory exists before saving.
+    """
+    if not os.path.exists(storage_dir):
+        os.makedirs(storage_dir)
+    
     data = []
-    # inventory_instance.items is a dict: {Furniture: quantity}
+    # Loop through each furniture item and its quantity to build a list of dictionaries.
     for furniture, quantity in inventory_instance.items.items():
         data.append({
             "id": getattr(furniture, "id", None),
@@ -132,7 +150,13 @@ def save_inventory(inventory_instance):
             "class": furniture.__class__.__name__,
             "quantity": quantity
         })
-    return pd.DataFrame(data)
+
+    inventory_df = pd.DataFrame(data)
+    filepath = os.path.join(storage_dir, filename)
+    inventory_df.to_pickle(filepath)
+    print(f"Inventory saved to {filepath}")
+    
+    return inventory_df
 
 
 # ---------------------------
@@ -182,6 +206,48 @@ def get_users():
 # ---------------------------
 # POST Endpoints
 # ---------------------------
+@app.route("/api/inventorysearch", methods=["POST"])
+def inventory_search():
+    """
+    Search inventory based on parameters in the request body.
+    Expected JSON body fields:
+      - name_substring (optional string)
+      - min_price (optional float)
+      - max_price (optional float)
+      - furniture_type (optional string)
+    """
+    data = request.get_json() or {}
+
+    name_substring = data.get("name_substring")
+    min_price = data.get("min_price")
+    max_price = data.get("max_price")
+    furniture_type_str = data.get("furniture_type")
+
+    # Optionally log incoming data for debugging
+    logging.debug(f"Inventory search parameters: {data}")
+
+
+    # Run the inventory search
+    inventory = Inventory.get_instance()
+    search_results = inventory.search(
+        name_substring=name_substring,
+        min_price=min_price,
+        max_price=max_price,
+        furniture_type=furniture_type_str,
+    )
+
+    # Convert results to a list of dicts if needed
+    # or you can return them directly if they are JSON serializable
+    output = []
+    for item in search_results:
+        output.append({
+            "name": item.name,
+            "price": item.price,
+            "quantity": inventory.get_quantity(item)
+        })
+
+    return jsonify(output), 200
+
 @app.route("/api/users", methods=["POST"])
 def register_user():
     """
@@ -445,8 +511,8 @@ def create_furniture():
     """
     Create a new furniture item.
     Expected JSON:
-    {
-      "type": "Chair" or "Table" or "Sofa" or "Lamp" or "Shelf",
+    { "id" : unique(id),
+      "class": "Chair" or "Table" or "Sofa" or "Lamp" or "Shelf",
       "name": "...",
       "description": "...",
       "price": 123.45,
@@ -489,6 +555,7 @@ def create_furniture():
     next_furniture_id += 1
 
     inventory.add_item(new_furniture, quantity)
+
     save_inventory(inventory)
 
     return jsonify({
@@ -513,7 +580,7 @@ def delete_inventory(furniture_id):
             break
     if found_item is None:
         return jsonify({"error": "Furniture item not found"}), 404
-
+    
     current_qty = inventory.items.get(found_item, 0)
     inventory.remove_item(found_item, quantity=current_qty)
     save_inventory(inventory)
@@ -590,6 +657,7 @@ if __name__ == "__main__":  # pragma: no cover
         inv_response = client.post(
             "/api/inventory",
             json={
+                "id": 1,    
                 "type": "Chair",
                 "name": "Regression Chair",
                 "description": "A chair for regression test",
@@ -661,6 +729,14 @@ if __name__ == "__main__":  # pragma: no cover
         )
         print("Cart Update User Registration:", cart_update_user_response.get_json())
 
+        search_response = client.post(
+            "/api/inventorysearch",
+            json={"name_substring": "Chair",
+                  "min_price": 50.0,
+                  "max_price": 100.0,
+                  "furniture_type": "Chair"}
+        )
+        print("Search Results:", search_response.get_json())
         # --- Add Inventory Item for Cart Update User Checkout ---
         # This item will be used in the cart so that checkout can find it in the inventory.
         inventory_cart_response = client.post(

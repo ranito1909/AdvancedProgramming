@@ -5,6 +5,8 @@ import hashlib
 from enum import Enum
 from datetime import datetime
 import logging
+import os
+import pandas as pd
 
 # Configure logging to report warnings and errors during operations.
 logging.basicConfig(level=logging.INFO)
@@ -243,6 +245,8 @@ class Inventory:
         if Inventory._instance is not None:
             raise Exception("Inventory is a singleton. Use Inventory.get_instance() instead.")
         self.items: Dict[Furniture, int] = {}
+        # Load persistent inventory data on initialization
+        self.load_inventory()
         Inventory._instance = self
 
     @staticmethod
@@ -250,6 +254,51 @@ class Inventory:
         if Inventory._instance is None:
             Inventory()
         return Inventory._instance
+
+    def load_inventory(self, filename="inventory.pkl", storage_dir="storage") -> None:
+        """
+        Load inventory data from a pickle file and populate the inventory dictionary.
+        
+        Args:
+            filename (str): Name of the pickle file (default "inventory.pkl").
+            storage_dir (str): The directory where the pickle file is located.
+            This parameter lets you choose where the persisted inventory is stored.
+        
+        This method attempts to load the inventory from a persisted pickle file. For each row in the DataFrame,
+        it reconstructs the appropriate Furniture object. If extra attributes (like cushion_material for Chair)
+        are missing, default values are provided.
+        """
+        filepath = os.path.join(storage_dir, filename)
+        if os.path.exists(filepath):
+            inventory_df = pd.read_pickle(filepath)
+            for _, row in inventory_df.iterrows():
+                furniture_class_name = row["class"]
+                # Reconstruct the furniture object based on its type.
+                if furniture_class_name == "Chair":
+                    # Chair requires an extra cushion_material parameter.
+                    extra = row.get("cushion_material", "default_cushion")
+                    obj = Chair(row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+                elif furniture_class_name == "Table":
+                    extra = row.get("frame_material", "default_frame")
+                    obj = Table(row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+                elif furniture_class_name == "Sofa":
+                    extra = row.get("capacity", 1)  # Default capacity if missing.
+                    obj = Sofa(row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+                elif furniture_class_name == "Lamp":
+                    extra = row.get("light_source", "default_light_source")
+                    obj = Lamp(row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+                elif furniture_class_name == "Shelf":
+                    extra = row.get("wall_mounted", False)
+                    obj = Shelf(row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+                else:
+                    # Fallback: if the furniture type is unknown, try to construct without extra parameters.
+                    obj = None  # Or raise an error if appropriate.
+                if obj is not None:
+                    obj.id = row["id"]
+                    self.items[obj] = row["quantity"]
+            print(f"Inventory loaded from {filepath}")
+        else:
+            print(f"No persisted inventory file found at {filepath}. Starting with an empty inventory.")
 
     def add_item(self, furniture: Furniture, quantity: int = 1) -> None:
         """
@@ -311,8 +360,6 @@ class Inventory:
             if min_price is not None and item.price < min_price:
                 continue
             if max_price is not None and item.price > max_price:
-                continue
-            if furniture_type and not isinstance(item, furniture_type):
                 continue
             results.append(item)
         return results
@@ -675,3 +722,11 @@ class Order:
             f"Total Price: {self.total_price:.2f}\n"
             f"Created at: {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
         )
+    
+FURNITURE_MAP = {
+    "Chair": Chair,
+    "Table": Table,
+    "Sofa": Sofa,
+    "Lamp": Lamp,
+    "Shelf": Shelf,
+}
