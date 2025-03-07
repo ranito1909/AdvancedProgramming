@@ -59,5 +59,8 @@ jobs:
 
       - name: Check Code Formatting with Black
         run: |
-          black .
+          black . --exclude '/\.gitignore$'
           black --check .
+          
+          
+
