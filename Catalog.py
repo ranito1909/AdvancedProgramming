@@ -69,8 +69,8 @@ class Chair(Furniture):
     Attributes:
         cushion_material (str): The material used for the chair's cushion.
     """
-    def __init__(self, name: str, description: str, price: float, dimensions: Tuple[float, ...], cushion_material: str) -> None:
-        super().__init__(name, description, price, dimensions)
+    def __init__(self, id: int, name: str, description: str, price: float, dimensions: Tuple[float, ...], cushion_material: str) -> None:
+        super().__init__(id, name, description, price, dimensions)
         self.cushion_material = cushion_material
 
     def apply_discount(self, percentage: float) -> None:
@@ -104,8 +104,8 @@ class Table(Furniture):
     Attributes:
         frame_material (str): The material used for the table frame.
     """
-    def __init__(self, name: str, description: str, price: float, dimensions: Tuple[float, ...], frame_material: str) -> None:
-        super().__init__(name, description, price, dimensions)
+    def __init__(self, id: int, name: str, description: str, price: float, dimensions: Tuple[float, ...], frame_material: str) -> None:
+        super().__init__(id, name, description, price, dimensions)
         self.frame_material = frame_material
 
     def apply_discount(self, percentage: float) -> None:
@@ -138,8 +138,8 @@ class Sofa(Furniture):
     Attributes:
         capacity (int): Number of people who can sit on the sofa.
     """
-    def __init__(self, name: str, description: str, price: float, dimensions: Tuple[float, ...], capacity: int) -> None:
-        super().__init__(name, description, price, dimensions)
+    def __init__(self, id: int, name: str, description: str, price: float, dimensions: Tuple[float, ...], capacity: int) -> None:
+        super().__init__(id, name, description, price, dimensions)
         self.capacity = capacity
 
     def apply_discount(self, percentage: float) -> None:
@@ -172,8 +172,8 @@ class Lamp(Furniture):
     Attributes:
         light_source (str): The type of light (e.g., LED, fluorescent).
     """
-    def __init__(self, name: str, description: str, price: float, dimensions: Tuple[float, ...], light_source: str) -> None:
-        super().__init__(name, description, price, dimensions)
+    def __init__(self, id: int, name: str, description: str, price: float, dimensions: Tuple[float, ...], light_source: str) -> None:
+        super().__init__(id, name, description, price, dimensions)
         self.light_source = light_source
 
     def apply_discount(self, percentage: float) -> None:
@@ -206,8 +206,8 @@ class Shelf(Furniture):
     Attributes:
         wall_mounted (bool): True if the shelf is wall-mounted.
     """
-    def __init__(self, name: str, description: str, price: float, dimensions: Tuple[float, ...], wall_mounted: bool) -> None:
-        super().__init__(name, description, price, dimensions)
+    def __init__(self, id: int, name: str, description: str, price: float, dimensions: Tuple[float, ...], wall_mounted: bool) -> None:
+        super().__init__(id, name, description, price, dimensions)
         self.wall_mounted = wall_mounted
 
     def apply_discount(self, percentage: float) -> None:
@@ -284,19 +284,20 @@ class Inventory:
                 if furniture_class_name == "Chair":
                     # Chair requires an extra cushion_material parameter.
                     extra = row.get("cushion_material", "default_cushion")
-                    obj = Chair(row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+                    print(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+                    obj = Chair(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
                 elif furniture_class_name == "Table":
                     extra = row.get("frame_material", "default_frame")
-                    obj = Table(row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+                    obj = Table(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
                 elif furniture_class_name == "Sofa":
                     extra = row.get("capacity", 1)  # Default capacity if missing.
-                    obj = Sofa(row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+                    obj = Sofa(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
                 elif furniture_class_name == "Lamp":
                     extra = row.get("light_source", "default_light_source")
-                    obj = Lamp(row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+                    obj = Lamp(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
                 elif furniture_class_name == "Shelf":
                     extra = row.get("wall_mounted", False)
-                    obj = Shelf(row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+                    obj = Shelf(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
                 else:
                     # Fallback: if the furniture type is unknown, try to construct without extra parameters.
                     obj = None  # Or raise an error if appropriate.
