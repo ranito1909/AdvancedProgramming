@@ -521,7 +521,7 @@ def update_cart(email):
             return jsonify({"error": str(e)}), 400
         
         cart.add_item(leaf_item)
-        app.logger.debug("[DEBUG] update_cart: Added item: %s", leaf_item)
+        #app.logger.debug("[DEBUG] update_cart: Added item: %s", leaf_item)
 
     total_price = cart.get_total_price()
     response_items = []
@@ -530,7 +530,7 @@ def update_cart(email):
             "furniture_id": int(child.name),
             "quantity": child.quantity
         })
-    app.logger.debug("[DEBUG] update_cart: Cart updated for email %s with total price: %.2f", email, total_price)
+    #app.logger.debug("[DEBUG] update_cart: Cart updated for email %s with total price: %.2f", email, total_price)
 
     return jsonify({"user_email": email, "items": response_items, "total_price": total_price}), 200
 
