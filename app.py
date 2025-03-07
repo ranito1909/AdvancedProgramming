@@ -439,11 +439,9 @@ def remove_cart_item(email: str):
     and calling remove_item on the cart.
     """
     data = request.get_json() or {}
-
     item_id = data.get("item_id")
     unit_price = data.get("unit_price")
     quantity = data.get("quantity")
-
     if not item_id:
         return jsonify({"error": "Missing item_id in request data"}), 400
     if unit_price is None:
@@ -725,7 +723,7 @@ if __name__ == "__main__":  # pragma: no cover
         sec_user_response = client.post(
             "/api/users",
             json={
-                "email": "regression@example.com",
+                "email": "regression@example2.com",
                 "name": "Regression Test1",
                 "password": "regress123",
             }
@@ -898,6 +896,7 @@ if __name__ == "__main__":  # pragma: no cover
         # --- Retrieve and Print All Orders ---
         orders_response = client.get("/api/orders")
         print("[DEBUG_APP]","All Orders:", orders_response.get_json())
+        
 
     # Finally, start your Flask app
     app.run(debug=True)

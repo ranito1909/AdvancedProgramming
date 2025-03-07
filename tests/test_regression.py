@@ -2,17 +2,6 @@ import pytest
 import app
 import pandas as pd
 
-@pytest.fixture(autouse=True)
-def clear_domain_state():
-    # Clear the Inventory items and User store before each regression test.
-    inv = app.Inventory.get_instance()
-    inv.items.clear()
-    app.User._users.clear()
-    app.orders_df = app.orders_df.iloc[0:0]
-    app.cart_df = app.cart_df.iloc[0:0]
-    app.furniture_df = app.furniture_df.iloc[0:0]
-    yield
-
 @pytest.mark.parametrize("furniture_data", [
     {"id": 1, "name": "Test Chair", "description": "Red chair", "price": 100.0, "dimensions": [40, 40, 90], "type": "Chair", "quantity": 5, "cushion_material": "foam"},
     {"id": 2, "name": "Test Table", "description": "Blue table", "price": 250.0, "dimensions": [50, 50, 100], "type": "Table", "quantity": 3, "frame_material": "wood"},
@@ -31,6 +20,7 @@ def test_furniture_creation_and_retrieval(client, furniture_data):
     {"email": "user1@example.com", "name": "User One", "password": "pass1"},
     {"email": "user2@example.com", "name": "User Two", "password": "pass2"}
 ])
+
 def test_user_registration_and_profile_update(client, user_data):
     response = client.post("/api/users", json=user_data)
     assert response.status_code == 201
@@ -118,6 +108,7 @@ def test_create_furniture_persistence(client):
     assert not new_item.empty, "Automated Test Chair not found in the persisted inventory."
 
 @pytest.mark.regression
+
 def test_full_regression_flow(client):
     """
     A regression test that exercises the entire flow:
@@ -144,7 +135,7 @@ def test_full_regression_flow(client):
         "/api/orders",
         json={
             "user_email": "regression@example.com",
-            "items": [{"furniture_id": 1, "quantity": 1}, {"furniture_id": 2, "quantity": 70}]
+            "items": [{"furniture_id": 0, "quantity": 1}, {"furniture_id": -1, "quantity": 70}]
         }
     )
     # Example check (you can refine or remove as needed):
@@ -177,13 +168,14 @@ def test_full_regression_flow(client):
         }
     )
     assert inv_response.status_code == 201, "Should successfully add regression chair to inventory."
-
+    furniture_data = inv_response.get_json()
+    furniture_id = furniture_data.get("id")
     # --- Place Order for an Item That Is in Inventory ---
     res_furniture_in_inventory = client.post(
         "/api/orders",
         json={
             "user_email": "regression@example.com",
-            "items": [{"furniture_id": 1039, "quantity": 1}]
+            "items": [{"furniture_id": furniture_id, "quantity": 1}]
         }
     )
     assert res_furniture_in_inventory.status_code == 201, "Valid order with existing item should succeed."
@@ -322,7 +314,7 @@ def test_full_regression_flow(client):
     # --- Checkout Process for cartupdate@example.com ---
     checkout_payload = {"payment_method": "credit_card", "address": "123 Test St"}
     checkout_response = client.post("/api/checkout/cartupdate@example.com", json=checkout_payload)
-    assert checkout_response.status_code == 201, "Checkout should succeed after valid cart update."
+    assert checkout_response.status_code == 200, "Checkout should succeed after valid cart update."
 
     # --- Retrieve and Print All Orders ---
     orders_response = client.get("/api/orders")

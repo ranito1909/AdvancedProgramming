@@ -4,13 +4,13 @@ from typing import Tuple, Dict, List, Optional, Type
 import hashlib
 from enum import Enum
 from datetime import datetime
-import logging
+#import #logging
 import os
 import pandas as pd
 import pickle
 
-# Configure logging to report warnings and errors during operations.
-logging.basicConfig(level=logging.INFO)
+# Configure #logging to report warnings and errors during operations.
+#logging.basicConfig(level=#logging.INFO)
 
 # --------------------------------------------------------------------
 # Furniture (Abstract Base Class)
@@ -88,8 +88,8 @@ class Chair(Furniture):
         inventory = Inventory.get_instance()
         available = inventory.items.get(self, 0) > 0
         if not available:
-            logging.warning("[DEBUG_CATALOG]",f"Chair '{self.name}' is not available in inventory.")
-        return available
+            #logging.warning("[DEBUG_CATALOG]",f"Chair '{self.name}' is not available in inventory.")
+            return available
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -122,8 +122,8 @@ class Table(Furniture):
         inventory = Inventory.get_instance()
         available = inventory.items.get(self, 0) > 0
         if not available:
-            logging.warning("[DEBUG_CATALOG]",f"Table '{self.name}' is not available in inventory.")
-        return available
+            #logging.warning("[DEBUG_CATALOG]",f"Table '{self.name}' is not available in inventory.")
+            return available
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -156,8 +156,8 @@ class Sofa(Furniture):
         inventory = Inventory.get_instance()
         available = inventory.items.get(self, 0) > 0
         if not available:
-            logging.warning("[DEBUG_CATALOG]",f"Sofa '{self.name}' is not available in inventory.")
-        return available
+            #logging.warning("[DEBUG_CATALOG]",f"Sofa '{self.name}' is not available in inventory.")
+            return available
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -190,8 +190,8 @@ class Lamp(Furniture):
         inventory = Inventory.get_instance()
         available = inventory.items.get(self, 0) > 0
         if not available:
-            logging.warning("[DEBUG_CATALOG]",f"Lamp '{self.name}' is not available in inventory.")
-        return available
+            #logging.warning("[DEBUG_CATALOG]",f"Lamp '{self.name}' is not available in inventory.")
+            return available
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -224,8 +224,8 @@ class Shelf(Furniture):
         inventory = Inventory.get_instance()
         available = inventory.items.get(self, 0) > 0
         if not available:
-            logging.warning("[DEBUG_CATALOG]",f"Shelf '{self.name}' is not available in inventory.")
-        return available
+            #logging.warning("[DEBUG_CATALOG]",f"Shelf '{self.name}' is not available in inventory.")
+            return available
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -259,68 +259,53 @@ class Inventory:
         return Inventory._instance
 
     def load_inventory(self, filename="inventory.pkl", storage_dir="storage") -> None:
-        """
-        Load inventory data from a pickle file and populate the inventory dictionary.
-        
-        Args:
-            filename (str): Name of the pickle file (default "inventory.pkl").
-            storage_dir (str): The directory where the pickle file is located.
-            This parameter lets you choose where the persisted inventory is stored.
-        
-        This method attempts to load the inventory from a persisted pickle file. For each row in the DataFrame,
-        it reconstructs the appropriate Furniture object. If extra attributes (like cushion_material for Chair)
-        are missing, default values are provided.
-        """
-        inventory_path = "storage/inventory.pkl"
-        try:
-            with open(inventory_path, "rb") as f:
-                if os.path.getsize(inventory_path) == 0:
-                    print("[DEBUG_Catlaog]","[DEBUG] Inventory file is empty. Initializing empty inventory.")
-                    self.items = {}
-                else:
-                    self.items = pickle.load(f)
-                    print("[DEBUG_Catlaog]",f"[DEBUG] Loaded inventory: {self.items}")
+        inventory_path = os.path.join(storage_dir, filename)
+        if not os.path.exists(inventory_path) or os.path.getsize(inventory_path) == 0:
+            print("[DEBUG_Catalog]", "[DEBUG] Inventory file is empty. Initializing empty inventory.")
+            self.items = {}
+            return
 
+        try:
+            # Load the DataFrame from the pickle file
+            inventory_df = pd.read_pickle(inventory_path)
         except (EOFError, pickle.UnpicklingError):
-            print("[DEBUG_Catlaog]","[ERROR] Inventory file is corrupted or empty. Resetting inventory.")
-            self.items = {}  # Reset inventory if there's an issue
-        filepath = os.path.join(storage_dir, filename)
-        if os.path.exists(filepath):
-            inventory_df = pd.read_pickle(filepath)
-            if not inventory_df.empty:
-                # Find the largest ID in the DataFrame
-                max_id = inventory_df["id"].max()
-                if pd.notna(max_id):
-                    self.next_furniture_id = int(max_id) + 1
-            for _, row in inventory_df.iterrows():
-                furniture_class_name = row["class"]
-                # Reconstruct the furniture object based on its type.
-                if furniture_class_name == "Chair":
-                    # Chair requires an extra cushion_material parameter.
-                    extra = row.get("cushion_material", "default_cushion")
-                    print("[DEBUG_Catlaog]",row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                    obj = Chair(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                elif furniture_class_name == "Table":
-                    extra = row.get("frame_material", "default_frame")
-                    obj = Table(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                elif furniture_class_name == "Sofa":
-                    extra = row.get("capacity", 1)  # Default capacity if missing.
-                    obj = Sofa(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                elif furniture_class_name == "Lamp":
-                    extra = row.get("light_source", "default_light_source")
-                    obj = Lamp(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                elif furniture_class_name == "Shelf":
-                    extra = row.get("wall_mounted", False)
-                    obj = Shelf(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                else:
-                    # Fallback: if the furniture type is unknown, try to construct without extra parameters.
-                    obj = None  # Or raise an error if appropriate.
-                if obj is not None:
-                    obj.id = row["id"]
-                    self.items[obj] = row["quantity"]
-            print("[DEBUG_Catlaog]",f"Inventory loaded from {filepath}")
-        else:
-            print("[DEBUG_Catlaog]",f"No persisted inventory file found at {filepath}. Starting with an empty inventory.")
+            print("[DEBUG_Catalog]", "[ERROR] Inventory file is corrupted or empty. Resetting inventory.")
+            self.items = {}
+            return
+
+        # Update next_furniture_id based on the max id in the DataFrame
+        if not inventory_df.empty:
+            max_id = inventory_df["id"].max()
+            if pd.notna(max_id):
+                self.next_furniture_id = int(max_id) + 1
+
+        # Rebuild the items dictionary
+        self.items = {}  # Ensure items is a dictionary.
+        for _, row in inventory_df.iterrows():
+            furniture_class_name = row["class"]
+            obj = None
+            if furniture_class_name == "Chair":
+                extra = row.get("cushion_material", "default_cushion")
+                obj = Chair(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+            elif furniture_class_name == "Table":
+                extra = row.get("frame_material", "default_frame")
+                obj = Table(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+            elif furniture_class_name == "Sofa":
+                extra = row.get("capacity", 1)
+                obj = Sofa(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+            elif furniture_class_name == "Lamp":
+                extra = row.get("light_source", "default_light_source")
+                obj = Lamp(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+            elif furniture_class_name == "Shelf":
+                extra = row.get("wall_mounted", False)
+                obj = Shelf(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+            if obj is not None:
+                obj.id = row["id"]
+                # Here, row["quantity"] is a scalar (an int or np.int64)
+                self.items[obj] = row["quantity"]
+
+        print("[DEBUG_Catalog]", f"Inventory loaded from {inventory_path}")
+
 
     def get_next_furniture_id(self) -> int:
         """
@@ -346,10 +331,10 @@ class Inventory:
         :return: True if removal succeeded, otherwise False.
         """
         if furniture not in self.items:
-            logging.error("[DEBUG_CATALOG]",f"Attempted to remove non-existent item: {furniture.name}")
+            #logging.error("[DEBUG_CATALOG]",f"Attempted to remove non-existent item: {furniture.name}")
             return False
         if self.items[furniture] < quantity:
-            logging.error("[DEBUG_CATALOG]",f"Not enough quantity of {furniture.name} to remove.")
+            #logging.error("[DEBUG_CATALOG]",f"Not enough quantity of {furniture.name} to remove.")
             return False
         self.items[furniture] -= quantity
         if self.items[furniture] <= 0:
@@ -363,7 +348,7 @@ class Inventory:
         :return: True if update succeeded, False otherwise.
         """
         if furniture not in self.items:
-            logging.error("[DEBUG_CATALOG]",f"Item {furniture.name} not found during update.")
+            #logging.error("[DEBUG_CATALOG]",f"Item {furniture.name} not found during update.")
             return False
         if new_quantity <= 0:
             del self.items[furniture]
@@ -626,31 +611,31 @@ class Checkout:
         for item in leaf_items:
             furniture_in_inventory = self._find_furniture_by_name(item.name)
             if not furniture_in_inventory:
-                logging.error("[DEBUG_CATALOG]",f"Furniture '{item.name}' not found during checkout.")
+                ##logging.error(f"[DEBUG_CATALOG] Not enough '{item.name}': required {required_qty}, available {available_qty}.")
                 return False
             required_qty = item.quantity
             available_qty = self.inventory.get_quantity(furniture_in_inventory)
             if required_qty > available_qty:
-                logging.error("[DEBUG_CATALOG]",f"Not enough '{item.name}': required {required_qty}, available {available_qty}.")
+                ##logging.error("[DEBUG_CATALOG]",f"Not enough '{item.name}': required {required_qty}, available {available_qty}.")
                 return False
         return True
 
     def process_payment(self) -> bool:
         if not self.payment_method:
-            logging.error("[DEBUG_CATALOG]","Payment method not set.")
+            #logging.error("[DEBUG_CATALOG]","Payment method not set.")
             return False
         # Mock payment processing
         return True
 
     def finalize_order(self) -> bool:
         if self.order_finalized:
-            logging.error("[DEBUG_CATALOG]","Order already finalized.")
+            #logging.error("[DEBUG_CATALOG]","Order already finalized.")
             return False
         if not self.validate_cart():
-            logging.error("[DEBUG_CATALOG]","Cart validation failed during checkout.")
+            #logging.error("[DEBUG_CATALOG]","Cart validation failed during checkout.")
             return False
         if not self.process_payment():
-            logging.error("[DEBUG_CATALOG]","Payment processing failed.")
+            #logging.error("[DEBUG_CATALOG]","Payment processing failed.")
             return False
 
         leaf_items = self._collect_leaf_items(self.cart.root)
