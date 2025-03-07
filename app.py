@@ -725,3 +725,4 @@ if __name__ == "__main__":  # pragma: no cover
     # Start the Flask app in debug mode.
     app.run(debug=True)
 
+TAX_RATE = 0.18

@@ -11,10 +11,13 @@ import pandas as pd
 # Configure logging to report warnings and errors during operations.
 logging.basicConfig(level=logging.INFO)
 
+#Constants
+TAX_RATE = 0.18
+
 # --------------------------------------------------------------------
 # Furniture (Abstract Base Class)
 # --------------------------------------------------------------------
-class Furniture(ABC):
+class Furniture():
     """
     An abstract base class representing a piece of furniture.
 
@@ -30,30 +33,24 @@ class Furniture(ABC):
         self.price = price
         self.dimensions = dimensions
 
-    @abstractmethod
     def apply_discount(self, percentage: float) -> None:
-        """
-        Apply a discount to the price.
-        
-        :param percentage: Discount percentage (0-100).
-        :raises ValueError: If percentage is not within 0-100.
-        """
+        if not (0 <= percentage <= 100):
+            raise ValueError("Discount percentage must be between 0 and 100.")
+        discount_amount = self.price * (percentage / 100)
+        self.price -= discount_amount
     
-    @abstractmethod
-    def apply_tax(self, tax_rate: float) -> None:
-        """
-        Apply a tax to the price.
-        
-        :param tax_rate: Tax rate as a decimal (e.g., 0.17 for 17%).
-        """
+    def apply_tax(self, tax_rate: float = TAX_RATE) -> None:
+        if tax_rate < 0:
+            raise ValueError("Tax rate must be positive")
+        self.price *= 1 + tax_rate
     
-    @abstractmethod
     def check_availability(self) -> bool:
-        """
-        Check if this furniture item is available in the inventory.
-        
-        :return: True if available, False otherwise.
-        """
+        inventory = Inventory.get_instance()
+        available = inventory.items.get(self, 0) > 0
+        if not available:
+            logging.warning(f"The furniture '{self.name}' is not available in inventory.")
+        return available
+
     
     def __str__(self) -> str:
         return f"{self.name} ({self.description}): {self.price:.2f} ₪"
@@ -71,24 +68,7 @@ class Chair(Furniture):
     def __init__(self, name: str, description: str, price: float, dimensions: Tuple[float, ...], cushion_material: str) -> None:
         super().__init__(name, description, price, dimensions)
         self.cushion_material = cushion_material
-
-    def apply_discount(self, percentage: float) -> None:
-        if not (0 <= percentage <= 100):
-            raise ValueError("Discount percentage must be between 0 and 100.")
-        discount_amount = self.price * (percentage / 100)
-        self.price -= discount_amount
-
-    def apply_tax(self, tax_rate: float) -> None:
-        self.price *= 1 + tax_rate
-
-    def check_availability(self) -> bool:
-        # Retrieve the singleton Inventory instance locally to avoid circular dependency.
-        inventory = Inventory.get_instance()
-        available = inventory.items.get(self, 0) > 0
-        if not available:
-            logging.warning(f"Chair '{self.name}' is not available in inventory.")
-        return available
-
+    
     def __str__(self) -> str:
         base_str = super().__str__()
         return f"{base_str}, Cushion Material: {self.cushion_material}"
@@ -106,22 +86,6 @@ class Table(Furniture):
     def __init__(self, name: str, description: str, price: float, dimensions: Tuple[float, ...], frame_material: str) -> None:
         super().__init__(name, description, price, dimensions)
         self.frame_material = frame_material
-
-    def apply_discount(self, percentage: float) -> None:
-        if not (0 <= percentage <= 100):
-            raise ValueError("Discount percentage must be between 0 and 100.")
-        discount_amount = self.price * (percentage / 100)
-        self.price -= discount_amount
-
-    def apply_tax(self, tax_rate: float) -> None:
-        self.price *= 1 + tax_rate
-
-    def check_availability(self) -> bool:
-        inventory = Inventory.get_instance()
-        available = inventory.items.get(self, 0) > 0
-        if not available:
-            logging.warning(f"Table '{self.name}' is not available in inventory.")
-        return available
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -141,22 +105,6 @@ class Sofa(Furniture):
         super().__init__(name, description, price, dimensions)
         self.capacity = capacity
 
-    def apply_discount(self, percentage: float) -> None:
-        if not (0 <= percentage <= 100):
-            raise ValueError("Discount percentage must be between 0 and 100.")
-        discount_amount = self.price * (percentage / 100)
-        self.price -= discount_amount
-
-    def apply_tax(self, tax_rate: float) -> None:
-        self.price *= 1 + tax_rate
-
-    def check_availability(self) -> bool:
-        inventory = Inventory.get_instance()
-        available = inventory.items.get(self, 0) > 0
-        if not available:
-            logging.warning(f"Sofa '{self.name}' is not available in inventory.")
-        return available
-
     def __str__(self) -> str:
         base_str = super().__str__()
         return f"{base_str}, Capacity: {self.capacity}"
@@ -174,22 +122,6 @@ class Lamp(Furniture):
     def __init__(self, name: str, description: str, price: float, dimensions: Tuple[float, ...], light_source: str) -> None:
         super().__init__(name, description, price, dimensions)
         self.light_source = light_source
-
-    def apply_discount(self, percentage: float) -> None:
-        if not (0 <= percentage <= 100):
-            raise ValueError("Discount percentage must be between 0 and 100.")
-        discount_amount = self.price * (percentage / 100)
-        self.price -= discount_amount
-
-    def apply_tax(self, tax_rate: float) -> None:
-        self.price *= 1 + tax_rate
-
-    def check_availability(self) -> bool:
-        inventory = Inventory.get_instance()
-        available = inventory.items.get(self, 0) > 0
-        if not available:
-            logging.warning(f"Lamp '{self.name}' is not available in inventory.")
-        return available
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -209,29 +141,23 @@ class Shelf(Furniture):
         super().__init__(name, description, price, dimensions)
         self.wall_mounted = wall_mounted
 
-    def apply_discount(self, percentage: float) -> None:
-        if not (0 <= percentage <= 100):
-            raise ValueError("Discount percentage must be between 0 and 100.")
-        discount_amount = self.price * (percentage / 100)
-        self.price -= discount_amount
-
-    def apply_tax(self, tax_rate: float) -> None:
-        self.price *= 1 + tax_rate
-
-    def check_availability(self) -> bool:
-        inventory = Inventory.get_instance()
-        available = inventory.items.get(self, 0) > 0
-        if not available:
-            logging.warning(f"Shelf '{self.name}' is not available in inventory.")
-        return available
-
     def __str__(self) -> str:
         base_str = super().__str__()
         return f"{base_str}, Wall Mounted: {self.wall_mounted}"
-
+    
 # --------------------------------------------------------------------
 # Inventory
 # --------------------------------------------------------------------
+
+# Maps furniture type strings (e.g. "Chair") to their corresponding class objects    
+FURNITURE_MAP = {
+    "Chair": Chair,
+    "Table": Table,
+    "Sofa": Sofa,
+    "Lamp": Lamp,
+    "Shelf": Shelf,
+}
+
 class Inventory:
     """
     Singleton class managing the furniture inventory.
@@ -474,6 +400,12 @@ class CartComponent(ABC):
         Apply a discount to this component.
         """
     
+    @abstractmethod
+    def apply_tax(self, tax_rate: float = TAX_RATE) -> None:
+        """
+        Apply tax to this component.
+        """
+
     def add(self, component: CartComponent) -> None:
         raise NotImplementedError("This component does not support adding children.")
 
@@ -496,7 +428,8 @@ class LeafItem(CartComponent):
         self.name = name
         self.unit_price = unit_price
         self.quantity = quantity
-        self._current_price = unit_price  # Tracks price after discount
+        self._current_price = unit_price
+        self._tax_applied = False  
 
     def get_price(self) -> float:
         return self._current_price * self.quantity
@@ -506,6 +439,13 @@ class LeafItem(CartComponent):
             raise ValueError("Discount percentage must be between 0 and 100.")
         discount_amount = self.unit_price * (percentage / 100)
         self._current_price = self.unit_price - discount_amount
+    
+    def apply_tax(self, tax_rate: float = TAX_RATE) -> None:
+        if not self._tax_applied:
+            self._current_price * (1 + tax_rate)
+            self._tax_applied = True
+        else:
+            raise ValueError("Tax has already been applied to this item.")
 
     def __str__(self) -> str:
         return f"LeafItem({self.name}, Price={self.unit_price:.2f}, Qty={self.quantity})"
@@ -520,6 +460,7 @@ class CompositeItem(CartComponent):
     def __init__(self, name: str) -> None:
         self.name = name
         self._children: List[CartComponent] = []
+        self._tax_applied = False
 
     def add(self, component: CartComponent) -> None:
         self._children.append(component)
@@ -528,11 +469,23 @@ class CompositeItem(CartComponent):
         self._children.remove(component)
 
     def get_price(self) -> float:
-        return sum(child.get_price() for child in self._children)
+        total_price = 0
+        for child in self._children:
+            total_price += child.get_price()
+        print(f"The total price after tax is: {total_price * (1 + TAX_RATE)}")
+        return total_price
 
     def apply_discount(self, percentage: float) -> None:
         for child in self._children:
             child.apply_discount(percentage)
+    
+    def apply_tax(self, tax_rate: float = TAX_RATE) -> None:
+        if not self._tax_applied:
+            for child in self._children:
+                child.apply_tax(tax_rate)
+            self._tax_applied = True
+        else:
+            raise ValueError("Tax has already been applied to this item.")
 
     def __str__(self) -> str:
         return f"CompositeItem({self.name}, children={len(self._children)})"
@@ -554,7 +507,7 @@ class ShoppingCart:
         self.root.remove(item)
 
     def get_total_price(self) -> float:
-        return self.root.get_price()
+        return self.root.get_price() * (1 + TAX_RATE)
 
     def apply_discount(self, percentage: float, target: Optional[CartComponent] = None) -> None:
         if target:
@@ -738,11 +691,3 @@ class Order:
             f"Total Price: {self.total_price:.2f}\n"
             f"Created at: {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
         )
-    
-FURNITURE_MAP = {
-    "Chair": Chair,
-    "Table": Table,
-    "Sofa": Sofa,
-    "Lamp": Lamp,
-    "Shelf": Shelf,
-}
