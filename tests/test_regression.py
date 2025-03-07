@@ -142,16 +142,8 @@ def test_full_regression_flow(client):
     assert res_furniture_not_in_inventory.status_code in (400, 404), \
         "An order with items not in inventory should fail."
 
-    # --- Second User Registration (Regression) ---
-    sec_user_response = client.post(
-        "/api/users",
-        json={
-            "email": "regression@example.com",
-            "name": "Regression Test1",
-            "password": "regress123",
-        }
-    )
-    # Possibly expect a 409 or 400 if user already exists
+   
+   
 
     # --- Add Inventory: Regression Chair ---
     inv_response = client.post(
