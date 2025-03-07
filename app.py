@@ -520,6 +520,7 @@ def create_furniture():
     }
     """
     data = request.get_json() or {}
+    id = data.get("id")
     ftype = data.get("type")
     name = data.get("name", "")
     description = data.get("description", "")
@@ -527,11 +528,12 @@ def create_furniture():
     dimensions = tuple(data.get("dimensions", []))
     quantity = data.get("quantity", 1)
 
+
     if ftype not in FURNITURE_MAP:
         return jsonify({"error": f"Invalid furniture type: {ftype}"}), 400
 
     furniture_class = FURNITURE_MAP[ftype]
-    args = [name, description, price, dimensions]
+    args = [id, name, description, price, dimensions]
 
     # Map extra parameter requirements for each furniture type.
     extra_field_defaults = {
