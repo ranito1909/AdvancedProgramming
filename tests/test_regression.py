@@ -116,231 +116,231 @@ def test_create_furniture_persistence(client):
     new_item = inventory_df[inventory_df["name"] == "Automated Test Chair"]
     assert not new_item.empty, "Automated Test Chair not found in the persisted inventory."
 
-    @pytest.mark.regression
-    def test_full_regression_flow(client):
-        """
-        A regression test that exercises the entire flow:
-            1. User registration
-            2. Creating orders with valid and invalid inventory
-            3. Adding inventory
-            4. Updating shopping cart
-            5. Removing items from cart
-            6. Checking out
-        """
-        # --- User Registration for Regression Testing ---
-        reg_user_response = client.post(
-            "/api/users",
-            json={
-                "email": "regression@example.com",
-                "name": "Regression Test1",
-                "password": "regress123",
-            }
-        )
-        print("User Registration (regression):", reg_user_response.get_json())
-        assert reg_user_response.status_code == 201, "User registration should succeed."
+@pytest.mark.regression
+def test_full_regression_flow(client):
+    """
+    A regression test that exercises the entire flow:
+        1. User registration
+        2. Creating orders with valid and invalid inventory
+        3. Adding inventory
+        4. Updating shopping cart
+        5. Removing items from cart
+        6. Checking out
+    """
+    # --- User Registration for Regression Testing ---
+    reg_user_response = client.post(
+        "/api/users",
+        json={
+            "email": "regression@example.com",
+            "name": "Regression Test1",
+            "password": "regress123",
+        }
+    )
+    print("User Registration (regression):", reg_user_response.get_json())
+    assert reg_user_response.status_code == 201, "User registration should succeed."
 
-        # --- Place an Order with Items Not in Inventory ---
-        res_furniture_not_in_inventory = client.post(
-            "/api/orders",
-            json={
-                "user_email": "regression@example.com",
-                "items": [{"furniture_id": 1, "quantity": 1}, {"furniture_id": 2, "quantity": 70}]
-            }
-        )
-        print("Order (furniture not in inventory):", res_furniture_not_in_inventory.get_json())
-        # Example check (you can refine or remove as needed):
-        assert res_furniture_not_in_inventory.status_code in (400, 404), \
-            "An order with items not in inventory should fail."
+    # --- Place an Order with Items Not in Inventory ---
+    res_furniture_not_in_inventory = client.post(
+        "/api/orders",
+        json={
+            "user_email": "regression@example.com",
+            "items": [{"furniture_id": 1, "quantity": 1}, {"furniture_id": 2, "quantity": 70}]
+        }
+    )
+    print("Order (furniture not in inventory):", res_furniture_not_in_inventory.get_json())
+    # Example check (you can refine or remove as needed):
+    assert res_furniture_not_in_inventory.status_code in (400, 404), \
+        "An order with items not in inventory should fail."
 
-        # --- Second User Registration (Regression) ---
-        sec_user_response = client.post(
-            "/api/users",
-            json={
-                "email": "regression@example.com",
-                "name": "Regression Test1",
-                "password": "regress123",
-            }
-        )
-        print("Second User Registration (regression):", sec_user_response.get_json())
-        # Possibly expect a 409 or 400 if user already exists
+    # --- Second User Registration (Regression) ---
+    sec_user_response = client.post(
+        "/api/users",
+        json={
+            "email": "regression@example.com",
+            "name": "Regression Test1",
+            "password": "regress123",
+        }
+    )
+    print("Second User Registration (regression):", sec_user_response.get_json())
+    # Possibly expect a 409 or 400 if user already exists
 
-        # --- Add Inventory: Regression Chair ---
-        inv_response = client.post(
-            "/api/inventory",
-            json={
-                "id": 1,
-                "type": "Chair",
-                "name": "Regression Chair",
-                "description": "A chair for regression test",
-                "price": 100.0,
-                "dimensions": [40, 40, 90],
-                "quantity": 10,
-                "cushion_material": "foam"
-            }
-        )
-        print("Inventory (Regression Chair):", inv_response.get_json())
-        assert inv_response.status_code == 201, "Should successfully add regression chair to inventory."
+    # --- Add Inventory: Regression Chair ---
+    inv_response = client.post(
+        "/api/inventory",
+        json={
+            "id": 1,
+            "type": "Chair",
+            "name": "Regression Chair",
+            "description": "A chair for regression test",
+            "price": 100.0,
+            "dimensions": [40, 40, 90],
+            "quantity": 10,
+            "cushion_material": "foam"
+        }
+    )
+    print("Inventory (Regression Chair):", inv_response.get_json())
+    assert inv_response.status_code == 201, "Should successfully add regression chair to inventory."
 
-        # --- Place Order for an Item That Is in Inventory ---
-        res_furniture_in_inventory = client.post(
-            "/api/orders",
-            json={
-                "user_email": "regression@example.com",
-                "items": [{"furniture_id": 1, "quantity": 1}]
-            }
-        )
-        print("Order (furniture in inventory):", res_furniture_in_inventory.get_json())
-        assert res_furniture_in_inventory.status_code == 201, "Valid order with existing item should succeed."
+    # --- Place Order for an Item That Is in Inventory ---
+    res_furniture_in_inventory = client.post(
+        "/api/orders",
+        json={
+            "user_email": "regression@example.com",
+            "items": [{"furniture_id": 1, "quantity": 1}]
+        }
+    )
+    print("Order (furniture in inventory):", res_furniture_in_inventory.get_json())
+    assert res_furniture_in_inventory.status_code == 201, "Valid order with existing item should succeed."
 
-        # --- Add Inventory: Test Chair ---
-        test_chair_response = client.post(
-            "/api/inventory",
-            json={
-                "type": "Chair",
-                "name": "Test Chair",
-                "description": "A test chair for order creation",
-                "price": 75.0,
-                "dimensions": [30, 30, 30],
-                "quantity": 5,
-                "cushion_material": "foam"
-            }
-        )
-        print("Inventory (Test Chair):", test_chair_response.get_json())
-        assert test_chair_response.status_code == 201, "Furniture creation failed."
-        furniture_data = test_chair_response.get_json()
-        furniture_id = furniture_data.get("id")
+    # --- Add Inventory: Test Chair ---
+    test_chair_response = client.post(
+        "/api/inventory",
+        json={
+            "type": "Chair",
+            "name": "Test Chair",
+            "description": "A test chair for order creation",
+            "price": 75.0,
+            "dimensions": [30, 30, 30],
+            "quantity": 5,
+            "cushion_material": "foam"
+        }
+    )
+    print("Inventory (Test Chair):", test_chair_response.get_json())
+    assert test_chair_response.status_code == 201, "Furniture creation failed."
+    furniture_data = test_chair_response.get_json()
+    furniture_id = furniture_data.get("id")
 
-        # --- Register Order User ---
-        order_user_response = client.post(
-            "/api/users",
-            json={
-                "email": "orderuser@example.com",
-                "name": "Order User",
-                "password": "orderpassword",
-            }
-        )
-        print("Order User Registration:", order_user_response.get_json())
-        assert order_user_response.status_code == 201, "Order user registration should succeed."
+    # --- Register Order User ---
+    order_user_response = client.post(
+        "/api/users",
+        json={
+            "email": "orderuser@example.com",
+            "name": "Order User",
+            "password": "orderpassword",
+        }
+    )
+    print("Order User Registration:", order_user_response.get_json())
+    assert order_user_response.status_code == 201, "Order user registration should succeed."
 
-        # --- Create Order for Order User Using the Actual Furniture ID ---
-        order_response = client.post(
-            "/api/orders",
-            json={
-                "user_email": "orderuser@example.com",
-                "items": [{"furniture_id": furniture_id, "quantity": 2}]
-            }
-        )
-        print("Order Creation (order user):", order_response.get_json())
-        assert order_response.status_code == 201, "Order creation for existing user/furniture should succeed."
+    # --- Create Order for Order User Using the Actual Furniture ID ---
+    order_response = client.post(
+        "/api/orders",
+        json={
+            "user_email": "orderuser@example.com",
+            "items": [{"furniture_id": furniture_id, "quantity": 2}]
+        }
+    )
+    print("Order Creation (order user):", order_response.get_json())
+    assert order_response.status_code == 201, "Order creation for existing user/furniture should succeed."
 
-        # --- Register User for Cart Update and Checkout ---
-        cart_update_user_response = client.post(
-            "/api/users",
-            json={
-                "email": "cartupdate@example.com",
-                "name": "Cart Update User",
-                "password": "cartpassword"
-            }
-        )
-        print("Cart Update User Registration:", cart_update_user_response.get_json())
-        assert cart_update_user_response.status_code == 201, "Cart update user registration should succeed."
+    # --- Register User for Cart Update and Checkout ---
+    cart_update_user_response = client.post(
+        "/api/users",
+        json={
+            "email": "cartupdate@example.com",
+            "name": "Cart Update User",
+            "password": "cartpassword"
+        }
+    )
+    print("Cart Update User Registration:", cart_update_user_response.get_json())
+    assert cart_update_user_response.status_code == 201, "Cart update user registration should succeed."
 
-        # --- Search Inventory (for Chairs) ---
-        search_response = client.post(
-            "/api/inventorysearch",
-            json={
-                "name_substring": "Chair",
-                "min_price": 50.0,
-                "max_price": 100.0,
-                "furniture_type": "Chair"
-            }
-        )
-        print("Search Results:", search_response.get_json())
-        assert search_response.status_code == 200, "Inventory search should succeed."
+    # --- Search Inventory (for Chairs) ---
+    search_response = client.post(
+        "/api/inventorysearch",
+        json={
+            "name_substring": "Chair",
+            "min_price": 50.0,
+            "max_price": 100.0,
+            "furniture_type": "Chair"
+        }
+    )
+    print("Search Results:", search_response.get_json())
+    assert search_response.status_code == 200, "Inventory search should succeed."
 
-        # --- Add Inventory Item for Cart Update User Checkout ---
-        inventory_cart_response = client.post(
-            "/api/inventory",
-            json={
-                "type": "Sofa",
-                "name": "CartUpdate Sofa",
-                "description": "A sofa for cart update checkout test",
-                "price": 300.0,
-                "dimensions": [200, 90, 100],
-                "quantity": 5,
-                "cushion_material": "leather"
-            }
-        )
-        inventory_cart_data = inventory_cart_response.get_json()
-        furniture_id_cartupdate = inventory_cart_data.get("id")
-        print("Inventory for Cart Update:", inventory_cart_data)
-        assert inventory_cart_response.status_code == 201, "Should successfully add Sofa to inventory."
+    # --- Add Inventory Item for Cart Update User Checkout ---
+    inventory_cart_response = client.post(
+        "/api/inventory",
+        json={
+            "type": "Sofa",
+            "name": "CartUpdate Sofa",
+            "description": "A sofa for cart update checkout test",
+            "price": 300.0,
+            "dimensions": [200, 90, 100],
+            "quantity": 5,
+            "cushion_material": "leather"
+        }
+    )
+    inventory_cart_data = inventory_cart_response.get_json()
+    furniture_id_cartupdate = inventory_cart_data.get("id")
+    print("Inventory for Cart Update:", inventory_cart_data)
+    assert inventory_cart_response.status_code == 201, "Should successfully add Sofa to inventory."
 
-        # --- Update Shopping Cart for cartupdate@example.com ---
-        cart_response_initial = client.put(
-            "/api/cart/cartupdate@example.com",
-            json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 3}]}
-        )
-        print("Initial Cart Update:", cart_response_initial.get_json())
-        assert cart_response_initial.status_code == 200, "Initial cart update should succeed."
+    # --- Update Shopping Cart for cartupdate@example.com ---
+    cart_response_initial = client.put(
+        "/api/cart/cartupdate@example.com",
+        json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 3}]}
+    )
+    print("Initial Cart Update:", cart_response_initial.get_json())
+    assert cart_response_initial.status_code == 200, "Initial cart update should succeed."
 
-        cart_response_updated = client.put(
-            "/api/cart/cartupdate@example.com",
-            json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 5}]}
-        )
-        print("Updated Cart:", cart_response_updated.get_json())
-        assert cart_response_updated.status_code == 200, "Cart update with new quantity should succeed."
+    cart_response_updated = client.put(
+        "/api/cart/cartupdate@example.com",
+        json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 5}]}
+    )
+    print("Updated Cart:", cart_response_updated.get_json())
+    assert cart_response_updated.status_code == 200, "Cart update with new quantity should succeed."
 
-        # Another cart update with explicit unit_price
-        cart_response_initial = client.put(
-            "/api/cart/cartupdate@example.com",
-            json={
-                "items": [
-                    {
-                        "furniture_id": furniture_id_cartupdate,
-                        "quantity": 3,
-                        "unit_price": 100.0
-                    }
-                ]
-            }
-        )
-        print("Initial Cart Update (with unit_price):", cart_response_initial.get_json())
-        assert cart_response_initial.status_code == 200, "Cart update with explicit unit_price should succeed."
+    # Another cart update with explicit unit_price
+    cart_response_initial = client.put(
+        "/api/cart/cartupdate@example.com",
+        json={
+            "items": [
+                {
+                    "furniture_id": furniture_id_cartupdate,
+                    "quantity": 3,
+                    "unit_price": 100.0
+                }
+            ]
+        }
+    )
+    print("Initial Cart Update (with unit_price):", cart_response_initial.get_json())
+    assert cart_response_initial.status_code == 200, "Cart update with explicit unit_price should succeed."
 
-        cart_response_updated = client.put(
-            "/api/cart/cartupdate@example.com",
-            json={
-                "items": [
-                    {
-                        "furniture_id": furniture_id_cartupdate,
-                        "quantity": 5,
-                        "unit_price": 300.0
-                    }
-                ]
-            }
-        )
-        print("Updated Cart (with new unit_price):", cart_response_updated.get_json())
-        assert cart_response_updated.status_code == 200, "Cart update with changed unit_price should succeed."
+    cart_response_updated = client.put(
+        "/api/cart/cartupdate@example.com",
+        json={
+            "items": [
+                {
+                    "furniture_id": furniture_id_cartupdate,
+                    "quantity": 5,
+                    "unit_price": 300.0
+                }
+            ]
+        }
+    )
+    print("Updated Cart (with new unit_price):", cart_response_updated.get_json())
+    assert cart_response_updated.status_code == 200, "Cart update with changed unit_price should succeed."
 
-        # --- Remove Item from Cart for cartupdate@example.com ---
-        remove_item_response = client.post(
-            "/api/cart/cartupdate@example.com/remove",
-            json={
-                "item_id": furniture_id_cartupdate,
-                "unit_price": 300.0,
-                "quantity": 3
-            }
-        )
-        print("Remove Item from Cart:", remove_item_response.get_json())
-        assert remove_item_response.status_code == 200, "Removing item from cart should succeed."
+    # --- Remove Item from Cart for cartupdate@example.com ---
+    remove_item_response = client.post(
+        "/api/cart/cartupdate@example.com/remove",
+        json={
+            "item_id": furniture_id_cartupdate,
+            "unit_price": 300.0,
+            "quantity": 3
+        }
+    )
+    print("Remove Item from Cart:", remove_item_response.get_json())
+    assert remove_item_response.status_code == 200, "Removing item from cart should succeed."
 
-        # --- Checkout Process for cartupdate@example.com ---
-        checkout_payload = {"payment_method": "credit_card", "address": "123 Test St"}
-        checkout_response = client.post("/api/checkout/cartupdate@example.com", json=checkout_payload)
-        print("Checkout Response:", checkout_response.get_json())
-        assert checkout_response.status_code == 201, "Checkout should succeed after valid cart update."
+    # --- Checkout Process for cartupdate@example.com ---
+    checkout_payload = {"payment_method": "credit_card", "address": "123 Test St"}
+    checkout_response = client.post("/api/checkout/cartupdate@example.com", json=checkout_payload)
+    print("Checkout Response:", checkout_response.get_json())
+    assert checkout_response.status_code == 201, "Checkout should succeed after valid cart update."
 
-        # --- Retrieve and Print All Orders ---
-        orders_response = client.get("/api/orders")
-        print("All Orders:", orders_response.get_json())
-        assert orders_response.status_code == 200, "Retrieving all orders should succeed."
+    # --- Retrieve and Print All Orders ---
+    orders_response = client.get("/api/orders")
+    print("All Orders:", orders_response.get_json())
+    assert orders_response.status_code == 200, "Retrieving all orders should succeed."
