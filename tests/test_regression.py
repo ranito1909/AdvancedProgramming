@@ -109,10 +109,9 @@ def test_create_furniture_persistence(client):
     )
     # Assert that the response indicates success.
     assert response.status_code == 201, f"Expected 201, got {response.status_code}"
-    
     # Now, simulate a 'restart' by loading the persisted inventory file.
     inventory_df = pd.read_pickle("storage/inventory.pkl")
-    
+
     # Verify that the DataFrame contains the new furniture item.
     # For example, check that the new item is in the DataFrame by name.
     new_item = inventory_df[inventory_df["name"] == "Automated Test Chair"]
@@ -138,7 +137,6 @@ def test_full_regression_flow(client):
             "password": "regress123",
         }
     )
-    print("User Registration (regression):", reg_user_response.get_json())
     assert reg_user_response.status_code == 201, "User registration should succeed."
 
     # --- Place an Order with Items Not in Inventory ---
@@ -149,7 +147,6 @@ def test_full_regression_flow(client):
             "items": [{"furniture_id": 1, "quantity": 1}, {"furniture_id": 2, "quantity": 70}]
         }
     )
-    print("Order (furniture not in inventory):", res_furniture_not_in_inventory.get_json())
     # Example check (you can refine or remove as needed):
     assert res_furniture_not_in_inventory.status_code in (400, 404), \
         "An order with items not in inventory should fail."
@@ -163,7 +160,6 @@ def test_full_regression_flow(client):
             "password": "regress123",
         }
     )
-    print("Second User Registration (regression):", sec_user_response.get_json())
     # Possibly expect a 409 or 400 if user already exists
 
     # --- Add Inventory: Regression Chair ---
@@ -180,7 +176,6 @@ def test_full_regression_flow(client):
             "cushion_material": "foam"
         }
     )
-    print("Inventory (Regression Chair):", inv_response.get_json())
     assert inv_response.status_code == 201, "Should successfully add regression chair to inventory."
 
     # --- Place Order for an Item That Is in Inventory ---
@@ -188,10 +183,9 @@ def test_full_regression_flow(client):
         "/api/orders",
         json={
             "user_email": "regression@example.com",
-            "items": [{"furniture_id": 1, "quantity": 1}]
+            "items": [{"furniture_id": 1039, "quantity": 1}]
         }
     )
-    print("Order (furniture in inventory):", res_furniture_in_inventory.get_json())
     assert res_furniture_in_inventory.status_code == 201, "Valid order with existing item should succeed."
 
     # --- Add Inventory: Test Chair ---
@@ -207,7 +201,6 @@ def test_full_regression_flow(client):
             "cushion_material": "foam"
         }
     )
-    print("Inventory (Test Chair):", test_chair_response.get_json())
     assert test_chair_response.status_code == 201, "Furniture creation failed."
     furniture_data = test_chair_response.get_json()
     furniture_id = furniture_data.get("id")
@@ -221,7 +214,6 @@ def test_full_regression_flow(client):
             "password": "orderpassword",
         }
     )
-    print("Order User Registration:", order_user_response.get_json())
     assert order_user_response.status_code == 201, "Order user registration should succeed."
 
     # --- Create Order for Order User Using the Actual Furniture ID ---
@@ -232,7 +224,6 @@ def test_full_regression_flow(client):
             "items": [{"furniture_id": furniture_id, "quantity": 2}]
         }
     )
-    print("Order Creation (order user):", order_response.get_json())
     assert order_response.status_code == 201, "Order creation for existing user/furniture should succeed."
 
     # --- Register User for Cart Update and Checkout ---
@@ -244,7 +235,6 @@ def test_full_regression_flow(client):
             "password": "cartpassword"
         }
     )
-    print("Cart Update User Registration:", cart_update_user_response.get_json())
     assert cart_update_user_response.status_code == 201, "Cart update user registration should succeed."
 
     # --- Search Inventory (for Chairs) ---
@@ -257,7 +247,6 @@ def test_full_regression_flow(client):
             "furniture_type": "Chair"
         }
     )
-    print("Search Results:", search_response.get_json())
     assert search_response.status_code == 200, "Inventory search should succeed."
 
     # --- Add Inventory Item for Cart Update User Checkout ---
@@ -275,7 +264,6 @@ def test_full_regression_flow(client):
     )
     inventory_cart_data = inventory_cart_response.get_json()
     furniture_id_cartupdate = inventory_cart_data.get("id")
-    print("Inventory for Cart Update:", inventory_cart_data)
     assert inventory_cart_response.status_code == 201, "Should successfully add Sofa to inventory."
 
     # --- Update Shopping Cart for cartupdate@example.com ---
@@ -283,14 +271,12 @@ def test_full_regression_flow(client):
         "/api/cart/cartupdate@example.com",
         json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 3}]}
     )
-    print("Initial Cart Update:", cart_response_initial.get_json())
     assert cart_response_initial.status_code == 200, "Initial cart update should succeed."
 
     cart_response_updated = client.put(
         "/api/cart/cartupdate@example.com",
         json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 5}]}
     )
-    print("Updated Cart:", cart_response_updated.get_json())
     assert cart_response_updated.status_code == 200, "Cart update with new quantity should succeed."
 
     # Another cart update with explicit unit_price
@@ -306,7 +292,6 @@ def test_full_regression_flow(client):
             ]
         }
     )
-    print("Initial Cart Update (with unit_price):", cart_response_initial.get_json())
     assert cart_response_initial.status_code == 200, "Cart update with explicit unit_price should succeed."
 
     cart_response_updated = client.put(
@@ -321,7 +306,6 @@ def test_full_regression_flow(client):
             ]
         }
     )
-    print("Updated Cart (with new unit_price):", cart_response_updated.get_json())
     assert cart_response_updated.status_code == 200, "Cart update with changed unit_price should succeed."
 
     # --- Remove Item from Cart for cartupdate@example.com ---
@@ -333,16 +317,14 @@ def test_full_regression_flow(client):
             "quantity": 3
         }
     )
-    print("Remove Item from Cart:", remove_item_response.get_json())
     assert remove_item_response.status_code == 200, "Removing item from cart should succeed."
 
     # --- Checkout Process for cartupdate@example.com ---
     checkout_payload = {"payment_method": "credit_card", "address": "123 Test St"}
     checkout_response = client.post("/api/checkout/cartupdate@example.com", json=checkout_payload)
-    print("Checkout Response:", checkout_response.get_json())
     assert checkout_response.status_code == 201, "Checkout should succeed after valid cart update."
 
     # --- Retrieve and Print All Orders ---
     orders_response = client.get("/api/orders")
-    print("All Orders:", orders_response.get_json())
+
     assert orders_response.status_code == 200, "Retrieving all orders should succeed."

@@ -4,6 +4,49 @@ import logging
 import pandas as pd
 # Import furniture classes and the Inventory singleton from catalog.py
 from Catalog import Inventory, Chair, Table, Sofa, Lamp, Shelf , User , ShoppingCart, LeafItem , Checkout , Order , OrderStatus
+import pickle
+# Define the storage directory
+storage_dir = "storage"
+
+# Ensure the storage directory exists
+os.makedirs(storage_dir, exist_ok=True)
+
+# List of required files and their default content
+files_with_defaults = {
+    "orders.pkl": pd.DataFrame(columns=["order_id", "user_email", "items"]),
+    "users.pkl": pd.DataFrame(columns=["email", "name", "password_hash", "address", "order_history"]),
+    "cart.pkl": pd.DataFrame(columns=["user_email", "items"]),
+    "inventory.pkl": pd.DataFrame(columns=["id", "name", "description", "price", "dimensions", "class", "quantity"])
+}
+
+# Check and create files if they don't exist, and initialize with default data if empty
+for filename, default_df in files_with_defaults.items():
+    file_path = os.path.join(storage_dir, filename)
+
+    if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+        with open(file_path, "wb") as f:
+            pickle.dump(default_df, f)  # Save default DataFrame
+        print("[DEBUG_APP]",f"Created and initialized: {file_path}")
+    else:
+        print("[DEBUG_APP]",f"Already exists and checked: {file_path}")
+def safe_load_pickle(file_path, default_df):
+    try:
+        df = pd.read_pickle(file_path)
+        if not isinstance(df, pd.DataFrame):  # Ensure it's a DataFrame
+            raise ValueError("Invalid pickle content, resetting file.")
+        return df
+    except (EOFError, FileNotFoundError, ValueError, pickle.UnpicklingError):
+        print("[DEBUG_APP]",f"[WARNING] {file_path} is empty or corrupted. Resetting...")
+        with open(file_path, "wb") as f:
+            pickle.dump(default_df, f)
+        return default_df
+
+# Load data with error handling
+orders_df = safe_load_pickle(os.path.join(storage_dir, "orders.pkl"), files_with_defaults["orders.pkl"])
+users_df = safe_load_pickle(os.path.join(storage_dir, "users.pkl"), files_with_defaults["users.pkl"])
+cart_df = safe_load_pickle(os.path.join(storage_dir, "cart.pkl"), files_with_defaults["cart.pkl"])
+furniture_df = safe_load_pickle(os.path.join(storage_dir, "inventory.pkl"), files_with_defaults["inventory.pkl"])
+
 
 # Initialize the Inventory singleton
 inventory = Inventory.get_instance()
@@ -19,14 +62,10 @@ def custom_append(self, other, ignore_index=False):
 
 pd.DataFrame.append = custom_append
 
+
 app = Flask(__name__)
 app.logger.setLevel(logging.DEBUG)
 
-# Global in-memory DataFrames for orders, users, and cart
-orders_df = pd.DataFrame(columns=["order_id", "user_email", "items"])
-users_df = pd.DataFrame(columns=["email", "name", "password_hash", "address", "order_history"])
-cart_df = pd.DataFrame(columns=["user_email", "items"])
-furniture_df= pd.DataFrame(columns=["id", "name", "description", "price", "dimensions", "class", "quantity"])
 
 # "Save" functions (simulate persistence)
 def save_orders(orders_df, filename="orders.pkl", storage_dir="storage"):
@@ -48,7 +87,7 @@ def save_orders(orders_df, filename="orders.pkl", storage_dir="storage"):
         os.makedirs(storage_dir)
     filepath = os.path.join(storage_dir, filename)
     orders_df.to_pickle(filepath)
-    print(f"Orders saved to {filepath}")
+    print("[DEBUG_APP]",f"Orders saved to {filepath}")
 
 def save_users(users_dict, filename="users.pkl", storage_dir="storage"):
     """
@@ -76,7 +115,7 @@ def save_users(users_dict, filename="users.pkl", storage_dir="storage"):
     users_df = pd.DataFrame(users_list)
     filepath = os.path.join(storage_dir, filename)
     users_df.to_pickle(filepath)
-    print(f"Users saved to {filepath}")
+    print("[DEBUG_APP]",f"Users saved to {filepath}")
 
 def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
     """
@@ -115,7 +154,7 @@ def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
     carts_df = pd.DataFrame(carts_list)
     filepath = os.path.join(storage_dir, filename)
     carts_df.to_pickle(filepath)
-    print(f"Cart data saved to {filepath}")
+    print("[DEBUG_APP]",f"Cart data saved to {filepath}")
 
 def save_inventory(inventory_instance, filename="inventory.pkl", storage_dir="storage"):
     """
@@ -140,12 +179,13 @@ def save_inventory(inventory_instance, filename="inventory.pkl", storage_dir="st
     data = []
     # Loop through each furniture item and its quantity to build a list of dictionaries.
     for furniture, quantity in inventory_instance.items.items():
+        print("[DEBUG_APP]",f"[DEBUG] Saving furniture: {furniture} with quantity {quantity}")
         data.append({
             "id": getattr(furniture, "id", None),
-            "name": furniture.name,
-            "description": furniture.description,
-            "price": furniture.price,
-            "dimensions": furniture.dimensions,
+            "name": getattr(furniture, "name", None),
+            "description": getattr(furniture, "description", None),
+            "price": getattr(furniture, "price", None),
+            "dimensions": getattr(furniture, "dimensions", None),
             "class": furniture.__class__.__name__,
             "quantity": quantity
         })
@@ -153,7 +193,7 @@ def save_inventory(inventory_instance, filename="inventory.pkl", storage_dir="st
     inventory_df = pd.DataFrame(data)
     filepath = os.path.join(storage_dir, filename)
     inventory_df.to_pickle(filepath)
-    print(f"Inventory saved to {filepath}")
+    print("[DEBUG_APP]",f"Inventory saved to {filepath}")
     
     return inventory_df
 
@@ -223,7 +263,7 @@ def inventory_search():
     furniture_type_str = data.get("furniture_type")
 
     # Optionally log incoming data for debugging
-    logging.debug(f"Inventory search parameters: {data}")
+    logging.debug(f"[DEBUG_APP] Inventory search parameters: {data}")
 
 
     # Run the inventory search
@@ -280,7 +320,7 @@ def register_user():
 def create_order():
     data = request.get_json() or {}
     user_email = data.get("user_email")
-    print(f"[DEBUG] create_order: received user_email: {user_email}")
+    print("[DEBUG_APP]",f"[DEBUG] create_order: received user_email: {user_email}")
     
     # Retrieve the user instance.
     user = User.get_user(user_email)
@@ -301,12 +341,14 @@ def create_order():
         furniture_id = order_item.get("furniture_id")
         order_quantity = order_item.get("quantity", 1)
         found = None
+        if not isinstance(inventory.items, dict):
+            return jsonify({"error": "Inventory is not properly initialized"}), 500
         for furniture in inventory.items.keys():
-            print(f"[DEBUG] Checking furniture id: {getattr(furniture, 'id', None)} against order id: {furniture_id}")
+            print("[DEBUG_APP]",f"[DEBUG] Checking furniture id: {getattr(furniture, 'id', None)} against order id: {furniture_id}")
             if getattr(furniture, "id", None) == furniture_id:
                 if inventory.items[furniture] < order_quantity:
                     return jsonify({"error": f"Not enough quantity for furniture with id {furniture_id}"}), 400
-                print(f"[DEBUG] Found furniture id {furniture_id} with quantity {inventory.items[furniture]}")
+                print("[DEBUG_APP]",f"[DEBUG] Found furniture id {furniture_id} with quantity {inventory.items[furniture]}")
                 found = furniture
                 break
         if not found:
@@ -559,7 +601,7 @@ def create_furniture():
     }
     """
     data = request.get_json() or {}
-    id = data.get("id")
+    id = data.get("id",None)
     ftype = data.get("type")
     name = data.get("name", "")
     description = data.get("description", "")
@@ -591,7 +633,6 @@ def create_furniture():
 
     new_furniture = furniture_class(*args)
     new_furniture.id = inventory.get_next_furniture_id()
-
     inventory.add_item(new_furniture, quantity)
 
     save_inventory(inventory)
@@ -656,7 +697,7 @@ def delete_user(email):
 # Run the Flask App (with some regression test calls)
 # ---------------------------
 if __name__ == "__main__":  # pragma: no cover
-    print("Starting Flask app...")
+    print("[DEBUG_APP]","Starting Flask app...")
 
     with app.test_client() as client:
         # --- User Registration for Regression Testing ---
@@ -668,7 +709,7 @@ if __name__ == "__main__":  # pragma: no cover
                 "password": "regress123",
             }
         )
-        print("User Registration (regression):", reg_user_response.get_json())
+        print("[DEBUG_APP]","User Registration (regression):", reg_user_response.get_json())
 
         # --- Place an Order with Items Not in Inventory ---
         res_furniture_not_in_inventory = client.post(
@@ -678,7 +719,7 @@ if __name__ == "__main__":  # pragma: no cover
                 "items": [{"furniture_id": 1, "quantity": 1}, {"furniture_id": 2, "quantity": 70}]
             }
         )
-        print("Order (furniture not in inventory):", res_furniture_not_in_inventory.get_json())
+        print("[DEBUG_APP]","Order (furniture not in inventory):", res_furniture_not_in_inventory.get_json())
 
         # --- Second User Registration (Regression) ---
         sec_user_response = client.post(
@@ -689,7 +730,7 @@ if __name__ == "__main__":  # pragma: no cover
                 "password": "regress123",
             }
         )
-        print("Second User Registration (regression):", sec_user_response.get_json())
+        print("[DEBUG_APP]","Second User Registration (regression):", sec_user_response.get_json())
 
         # --- Add Inventory: Regression Chair ---
         inv_response = client.post(
@@ -705,7 +746,7 @@ if __name__ == "__main__":  # pragma: no cover
                 "cushion_material": "foam"
             }
         )
-        print("Inventory (Regression Chair):", inv_response.get_json())
+        print("[DEBUG_APP]","Inventory (Regression Chair):", inv_response.get_json())
 
         # --- Place Order for an Item That Is in Inventory ---
         res_furniture_in_inventory = client.post(
@@ -715,7 +756,7 @@ if __name__ == "__main__":  # pragma: no cover
                 "items": [{"furniture_id": 1, "quantity": 1}]
             }
         )
-        print("Order (furniture in inventory):", res_furniture_in_inventory.get_json())
+        print("[DEBUG_APP]","Order (furniture in inventory):", res_furniture_in_inventory.get_json())
 
         # --- Add Inventory: Test Chair ---
         test_chair_response = client.post(
@@ -730,7 +771,7 @@ if __name__ == "__main__":  # pragma: no cover
                 "cushion_material": "foam"
             }
         )
-        print("Inventory (Test Chair):", test_chair_response.get_json())
+        print("[DEBUG_APP]","Inventory (Test Chair):", test_chair_response.get_json())
         assert test_chair_response.status_code == 201, f"Furniture creation failed: {test_chair_response.status_code}"
         furniture_data = test_chair_response.get_json()
         furniture_id = furniture_data.get("id")
@@ -744,7 +785,7 @@ if __name__ == "__main__":  # pragma: no cover
                 "password": "orderpassword",
             }
         )
-        print("Order User Registration:", order_user_response.get_json())
+        print("[DEBUG_APP]","Order User Registration:", order_user_response.get_json())
 
         # --- Create Order for Order User Using the Actual Furniture ID ---
         order_response = client.post(
@@ -754,7 +795,7 @@ if __name__ == "__main__":  # pragma: no cover
                 "items": [{"furniture_id": furniture_id, "quantity": 2}]
             }
         )
-        print("Order Creation (order user):", order_response.get_json())
+        print("[DEBUG_APP]","Order Creation (order user):", order_response.get_json())
 
         # --- Register User for Cart Update and Checkout ---
         cart_update_user_response = client.post(
@@ -765,7 +806,7 @@ if __name__ == "__main__":  # pragma: no cover
                 "password": "cartpassword"
             }
         )
-        print("Cart Update User Registration:", cart_update_user_response.get_json())
+        print("[DEBUG_APP]","Cart Update User Registration:", cart_update_user_response.get_json())
 
         # --- Search Inventory (for Chairs) ---
         search_response = client.post(
@@ -777,7 +818,7 @@ if __name__ == "__main__":  # pragma: no cover
                 "furniture_type": "Chair"
             }
         )
-        print("Search Results:", search_response.get_json())
+        print("[DEBUG_APP]","Search Results:", search_response.get_json())
 
         # --- Add Inventory Item for Cart Update User Checkout ---
         inventory_cart_response = client.post(
@@ -794,20 +835,20 @@ if __name__ == "__main__":  # pragma: no cover
         )
         inventory_cart_data = inventory_cart_response.get_json()
         furniture_id_cartupdate = inventory_cart_data.get("id")
-        print("Inventory for Cart Update:", inventory_cart_data)
+        print("[DEBUG_APP]","Inventory for Cart Update:", inventory_cart_data)
 
         # --- Update Shopping Cart for cartupdate@example.com ---
         cart_response_initial = client.put(
             f"/api/cart/cartupdate@example.com",
             json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 3}]}
         )
-        print("Initial Cart Update:", cart_response_initial.get_json())
+        print("[DEBUG_APP]","Initial Cart Update:", cart_response_initial.get_json())
 
         cart_response_updated = client.put(
             f"/api/cart/cartupdate@example.com",
             json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 5}]}
         )
-        print("Updated Cart:", cart_response_updated.get_json())
+        print("[DEBUG_APP]","Updated Cart:", cart_response_updated.get_json())
         cart_response_initial = client.put(
             f"/api/cart/cartupdate@example.com",
             json={
@@ -820,7 +861,7 @@ if __name__ == "__main__":  # pragma: no cover
                 ]
             }
         )
-        print("Initial Cart Update:", cart_response_initial.get_json())
+        print("[DEBUG_APP]","Initial Cart Update:", cart_response_initial.get_json())
 
         # You could make a second update call, e.g., changing quantity or applying a discount
         cart_response_updated = client.put(
@@ -835,7 +876,7 @@ if __name__ == "__main__":  # pragma: no cover
                 ]
             }
         )
-        print("Updated Cart:", cart_response_updated.get_json())
+        print("[DEBUG_APP]","Updated Cart:", cart_response_updated.get_json())
 
         # --- Remove Item from Cart for cartupdate@example.com ---
         remove_item_response = client.post(
@@ -846,17 +887,17 @@ if __name__ == "__main__":  # pragma: no cover
         "quantity": 3
                 }
         )
-        print("Remove Item from Cart:", remove_item_response.get_json())
+        print("[DEBUG_APP]","Remove Item from Cart:", remove_item_response.get_json())
 
 
         # --- Checkout Process for cartupdate@example.com ---
         checkout_payload = {"payment_method": "credit_card", "address": "123 Test St"}
         checkout_response = client.post(f"/api/checkout/cartupdate@example.com", json=checkout_payload)
-        print("Checkout Response:", checkout_response.get_json())
+        print("[DEBUG_APP]","Checkout Response:", checkout_response.get_json())
 
         # --- Retrieve and Print All Orders ---
         orders_response = client.get("/api/orders")
-        print("All Orders:", orders_response.get_json())
+        print("[DEBUG_APP]","All Orders:", orders_response.get_json())
 
     # Finally, start your Flask app
     app.run(debug=True)
