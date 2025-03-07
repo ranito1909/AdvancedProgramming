@@ -373,7 +373,7 @@ def test_checkout_finalization_failure(client):
     assert user_response.status_code == 201
     # Add a cart item with a furniture_id that doesn't exist .
     cart_response = client.put(f"/api/cart/{email}", json={
-        "items": [{"furniture_id": 1, "quantity": 1, "unit_price": 100.0}]
+        "items": [{"furniture_id": -1, "quantity": 1, "unit_price": 100.0}]
     })
     assert cart_response.status_code == 200
     response = client.post(f"/api/checkout/{email}", json={
