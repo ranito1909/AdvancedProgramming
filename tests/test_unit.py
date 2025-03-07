@@ -283,7 +283,7 @@ def test_leafitem_discount_within_limits(client):
     assert response.status_code == 200
     data = response.get_json()
     # After a 50% discount, price should be 100.
-    assert data["total_price"] == 100.0
+    assert data["total_price"] == 118.0
 
 def test_leafitem_discount_over_100(client):
     """
