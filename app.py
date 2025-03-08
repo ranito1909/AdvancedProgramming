@@ -448,6 +448,43 @@ def register_user():
         "order_history": new_user.order_history
     }), 201
 
+@app.route("/api/login", methods=["POST"])
+def login():
+    data = request.get_json() or {}
+    email = data.get("email")
+    password = data.get("password")
+    if not email or not password:
+        return jsonify({"error": "Email and password required."}), 400
+    user = User.login_user(email, password)
+    if not user:
+        return jsonify({"error": "Invalid email or password."}), 401
+    return jsonify({
+        "email": user.email,
+        "name": user.name,
+        "address": user.address,
+        "order_history": user.order_history
+    }), 200
+
+@app.route("/api/users/<email>/check_password", methods=["POST"])
+def check_password(email):
+    data = request.get_json() or {}
+    candidate = data.get("password")
+    if not candidate:
+        return jsonify({"error": "Missing password"}), 400
+    user = User.get_user(email)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    is_correct = user.check_password(candidate)
+    return jsonify({"password_correct": is_correct}), 200
+
+@app.route("/api/hash_password", methods=["POST"])
+def hash_password():
+    data = request.get_json() or {}
+    raw_password = data.get("password")
+    if not raw_password:
+        return jsonify({"error": "Missing password"}), 400
+    hashed = User._hash_password(raw_password)
+    return jsonify({"hashed_password": hashed}), 200
 
 @app.route("/api/orders", methods=["POST"])
 def create_order():
@@ -479,6 +516,8 @@ def create_order():
         for furniture in inventory.items.keys():
             print("[DEBUG_APP]",f"[DEBUG] Checking furniture id: {getattr(furniture, 'id', None)} against order id: {furniture_id}")
             if getattr(furniture, "id", None) == furniture_id:
+                if not furniture.check_availability(): # Ensure no zero-quantity items
+                    return jsonify({"error": f"Furniture '{furniture.name}' is not available"}), 400
                 if inventory.items[furniture] < order_quantity:
                     return jsonify({"error": f"Not enough quantity for furniture with id {furniture_id}"}), 400
                 print("[DEBUG_APP]",f"[DEBUG] Found furniture id {furniture_id} with quantity {inventory.items[furniture]}")
@@ -638,6 +677,15 @@ def process_payment_endpoint(email: str):
     else:
         return jsonify({"payment_success": False, "error": "Payment processing failed"}), 400
 
+@app.route("/api/orders/<int:order_id>/status", methods=["GET"])
+def get_order_status(order_id):
+    # Find the order by ID
+    order = next((o for o in Order.all_orders if o.order_id == order_id), None)
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+
+    return jsonify({"order_id": order.order_id, "status": order.get_status().value}), 200
+
 # ---------------------------
 # PUT Endpoints
 # ---------------------------
@@ -740,6 +788,37 @@ def update_inventory(furniture_id):
         "class": found_item.__class__.__name__,
         "quantity": inventory.items.get(found_item, 0)
     }), 200
+
+@app.route("/api/users/<email>/password", methods=["PUT"])
+def update_password(email):
+    data = request.get_json() or {}
+    new_password = data.get("new_password")
+    if not new_password:
+        return jsonify({"error": "Missing new_password"}), 400
+    user = User.get_user(email)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    user.set_password(new_password)
+    return jsonify({"message": "Password updated successfully"}), 200
+
+@app.route("/api/orders/<int:order_id>/status", methods=["PUT"])
+def update_order_status(order_id):
+    data = request.get_json() or {}
+    new_status = data.get("status")
+    if not new_status:
+        return jsonify({"error": "Missing status"}), 400
+
+    # Find the order by ID
+    order = next((o for o in Order.all_orders if o.order_id == order_id), None)
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+
+    try:
+        order.set_status(OrderStatus(new_status))
+    except ValueError:
+        return jsonify({"error": "Invalid order status"}), 400
+
+    return jsonify({"message": "Order status updated successfully"}), 200
 
 # ---------------------------
 # POST Endpoint for Creating Furniture
