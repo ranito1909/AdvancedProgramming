@@ -1,4 +1,4 @@
-Project Design Document: Furniture Store API
+Project Design Document: Furniture Store
 
 1. Overview
 --------------------------------------------------------------------------------------------------------
@@ -9,14 +9,7 @@ The project leverages Flask for the web framework and uses Pandas for in-memory 
 It is built with a focus on scalability and maintainability by utilizing several proven design patterns.
 
 
-2. Design Evolution and Changes
---------------------------------------------------------------------------------------------------------
-
-
-
-
-
-3. How to Run the Application
+2. How to Run the Application
 --------------------------------------------------------------------------------------------------------
 Prerequisites:
 - Python 3.7 or later.
@@ -33,7 +26,7 @@ Setup and Execution:
    $ pytest
 
 
-4. Main API Use Cases and Example Calls
+3. Main API Use Cases and Example Calls
 --------------------------------------------------------------------------------------------------------
 Use Case 1: Register a New User
 - Endpoint: POST /api/users
@@ -50,6 +43,7 @@ Use Case 2: Add a Furniture Item to Inventory
 - Endpoint: POST /api/inventory
 - Request Body (Example for a Chair):
 {
+  "id": 1,
   "type": "Chair",
   "name": "Modern Chair",
   "description": "A comfortable modern chair.",
@@ -92,10 +86,10 @@ Use Case 5: Checkout Process
 - Outcome: Checkout finalizes the order, returning status code 200 with an order summary detailing items, total price, payment method, and shipping address.
 
 
-5. Design Patterns Used in the Project
+4. Design Patterns Used in the Project
 --------------------------------------------------------------------------------------------------------
 
-5.1 Singleton Pattern
+4.1 Singleton Pattern
 Usage:
 The Inventory class is implemented as a Singleton.
 Explanation:
@@ -105,7 +99,7 @@ data across different parts of the application.
 Implementation:
 The Inventory.get_instance() method is used to either create or retrieve the existing Inventory instance.
 
-5.2 Composite Pattern
+4.2 Composite Pattern
 Usage:
 The Shopping Cart is implemented using the Composite design pattern through the use of CompositeItem
 and LeafItem.
@@ -117,7 +111,7 @@ Implementation:
 The ShoppingCart class contains a CompositeItem (acting as the root), which aggregates multiple LeafItem
 instances. Each LeafItem represents an individual item in the cart.
 
-5.3 Factory Pattern
+4.3 Factory Pattern
 Usage:
 The Furniture Creation process uses a Factory-like approach.
 Explanation:
@@ -128,14 +122,3 @@ types without altering the endpoint logic.
 Implementation:
 In the /api/inventory POST endpoint, the input "type" is used to select the correct class from FURNITURE_MAP
 and instantiate the furniture object with its specific parameters.
-
-
-
-6. Conclusion
------------------
-This document details the design evolution of the Furniture Store from its initial implementation to the final
-modular and well-patterned architecture.
-It includes clear instructions on running the application and tests, along with the main API use cases.
-The project leverages proven design patterns (Singleton, Composite, and Factory) to ensure scalability,
-maintainability, and clarity of the codebase.
-"""
