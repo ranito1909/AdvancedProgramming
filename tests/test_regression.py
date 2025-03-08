@@ -312,3 +312,66 @@ def test_full_regression_flow(client):
     orders_response = client.get("/api/orders")
 
     assert orders_response.status_code == 200, "Retrieving all orders should succeed."
+
+def test_regression_validate_cart_valid(client):
+    """
+    Regression Test: Ensure that a valid cart continues to validate correctly.
+    """
+    test_email = "regression_valid@example.com"
+    
+    client.post("/api/users", json={
+        "email": test_email,
+        "name": "Regression Valid User",
+        "password": "regpass"
+    })
+
+    post_response = client.post("/api/inventory", json={
+        "type": "Chair",
+        "name": "Regression Valid Chair",
+        "description": "A chair for regression valid test",
+        "price": 100,
+        "dimensions": [40, 40, 90],
+        "quantity": 8,
+        "cushion_material": "fabric"
+    })
+    furniture_id = post_response.get_json()["id"]
+
+    client.put(f"/api/cart/{test_email}", json={
+        "items": [{"furniture_id": furniture_id, "quantity": 4, "unit_price": 100}]
+    })
+
+    get_response = client.get(f"/api/checkout/{test_email}/validate")
+    data = get_response.get_json()
+    assert data["cart_valid"], "Expected cart_valid to be True."
+
+def test_regression_validate_cart_invalid(client):
+    """
+    Regression Test: Ensure that a cart with quantities exceeding available inventory is flagged as invalid.
+    """
+    test_email = "regression_invalid@example.com"
+    
+    client.post("/api/users", json={
+        "email": test_email,
+        "name": "Regression Invalid User",
+        "password": "regpass"
+    })
+
+    post_response = client.post("/api/inventory", json={
+        "type": "Chair",
+        "name": "Regression Invalid Chair",
+        "description": "A chair for regression invalid test",
+        "price": 100,
+        "dimensions": [40, 40, 90],
+        "quantity": 2,
+        "cushion_material": "fabric"
+    })
+    furniture_id = post_response.get_json()["id"]
+
+    client.put(f"/api/cart/{test_email}", json={
+        "items": [{"furniture_id": furniture_id, "quantity": 3, "unit_price": 100}]
+    })
+
+    get_response = client.get(f"/api/checkout/{test_email}/validate")
+    data = get_response.get_json()
+    assert not data["cart_valid"], "Expected cart_valid to be False."
+
