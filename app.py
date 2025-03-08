@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify
 import os
 import logging
 import pandas as pd
-# Import furniture classes and the Inventory singleton from catalog.py
 from Catalog import Inventory, Chair, Table, Sofa, Lamp, Shelf , User , ShoppingCart, LeafItem , Checkout , Order , OrderStatus
 import pickle
 # Define the storage directory
@@ -417,8 +416,7 @@ def inventory_search():
         furniture_type=furniture_type_str,
     )
 
-    # Convert results to a list of dicts if needed
-    # or you can return them directly if they are JSON serializable
+    # Convert results to a list of dicts if needed or return them directly if they are JSON serializable
     output = []
     for item in search_results:
         output.append({
@@ -565,8 +563,7 @@ def update_profile(email):
     data = request.get_json() or {}
     user = User.get_user(email)
     if not user:
-        # For test purposes, if not found, we return 200 with a message.
-        return jsonify({"message": "No such user, but returning 200 for test"}), 200
+        return jsonify({"message": "No such user"}), 200
 
     user.update_profile(name=data.get("name"), address=data.get("address"))
     return jsonify({
@@ -823,6 +820,7 @@ def update_order_status(order_id):
 # ---------------------------
 # POST Endpoint for Creating Furniture
 # ---------------------------
+
 # Map from string type to Furniture subclass.
 FURNITURE_MAP = {
     "Chair": Chair,
@@ -1109,7 +1107,6 @@ if __name__ == "__main__":  # pragma: no cover
         )
         print("[DEBUG_APP]","Initial Cart Update:", cart_response_initial.get_json())
 
-        # You could make a second update call, e.g., changing quantity or applying a discount
         cart_response_updated = client.put(
             f"/api/cart/cartupdate@example.com",
             json={
@@ -1128,7 +1125,7 @@ if __name__ == "__main__":  # pragma: no cover
         remove_item_response = client.post(
         f"/api/cart/cartupdate@example.com/remove",
         json={
-        "item_id": furniture_id_cartupdate,   # e.g., 101
+        "item_id": furniture_id_cartupdate,   
         "unit_price": 300.0,
         "quantity": 3
                 }
@@ -1146,5 +1143,4 @@ if __name__ == "__main__":  # pragma: no cover
         print("[DEBUG_APP]","All Orders:", orders_response.get_json())
         
 
-    # Finally, start your Flask app
     app.run(debug=True)
