@@ -28,6 +28,7 @@ for filename, default_df in files_with_defaults.items():
         print("[DEBUG_APP]",f"Created and initialized: {file_path}")
     else:
         print("[DEBUG_APP]",f"Already exists and checked: {file_path}")
+
 def safe_load_pickle(file_path, default_df):
     try:
         df = pd.read_pickle(file_path)
@@ -221,6 +222,11 @@ def get_furniture():
 
 @app.route("/api/orders", methods=["GET"])
 def get_orders():
+    """
+    Retrieve all orders.
+    
+    Returns a JSON list of all orders stored in Order.all_orders.
+    """
     orders_dict = [order.to_dict() for order in Order.all_orders]
     return jsonify(orders_dict), 200
 
@@ -243,6 +249,15 @@ def get_users():
 
 # Helper function to locate a furniture item by its ID in the Inventory
 def get_furniture_item_by_id(furniture_id: int):
+    """
+    Locate a furniture item in the inventory by its unique ID.
+    
+    Args:
+        furniture_id (int): The ID of the furniture item.
+    
+    Returns:
+        The furniture item if found; otherwise, None.
+    """
     return next((item for item in inventory.items.keys() if getattr(item, "id", None) == furniture_id), None)
 
 @app.route("/api/inventory/<int:furniture_id>/quantity", methods=["GET"])
@@ -376,6 +391,15 @@ def find_furniture_by_name_endpoint(email: str):
 
 @app.route("/api/orders/<int:order_id>/status", methods=["GET"])
 def get_order_status(order_id):
+    """
+    Retrieve the status of an order by its ID.
+    
+    Args:
+        order_id (int): The unique identifier for the order.
+    
+    Returns:
+        A JSON object containing the order_id and its status.
+    """
     # Find the order by ID
     order = next((o for o in Order.all_orders if o.order_id == order_id), None)
     if not order:
@@ -457,6 +481,11 @@ def register_user():
 
 @app.route("/api/login", methods=["POST"])
 def login():
+    """
+    Authenticate a user and return user details if the credentials are valid.
+    
+    Expects a JSON payload with 'email' and 'password'. Returns an error if authentication fails.
+    """
     data = request.get_json() or {}
     email = data.get("email")
     password = data.get("password")
@@ -474,6 +503,15 @@ def login():
 
 @app.route("/api/users/<email>/check_password", methods=["POST"])
 def check_password(email):
+    """
+    Verify whether the provided password matches the stored password for a user.
+    
+    Args:
+        email (str): The email of the user.
+    
+    Returns:
+        A JSON object with a boolean indicating if the password is correct.
+    """
     data = request.get_json() or {}
     candidate = data.get("password")
     if not candidate:
@@ -486,6 +524,11 @@ def check_password(email):
 
 @app.route("/api/hash_password", methods=["POST"])
 def hash_password():
+    """
+    Generate a SHA-256 hash for the provided password.
+    
+    Expects a JSON payload with 'password' and returns the hashed password.
+    """
     data = request.get_json() or {}
     raw_password = data.get("password")
     if not raw_password:
@@ -495,6 +538,12 @@ def hash_password():
 
 @app.route("/api/orders", methods=["POST"])
 def create_order():
+    """
+    Create a new order based on the provided user email and order items.
+    
+    Validates inventory availability, creates an order, updates inventory and the user's order history,
+    and returns the created order details.
+    """
     data = request.get_json() or {}
     user_email = data.get("user_email")
     print("[DEBUG_APP]",f"[DEBUG] create_order: received user_email: {user_email}")
@@ -576,7 +625,12 @@ def update_profile(email):
 
 @app.route("/api/checkout/<email>", methods=["POST"])
 def checkout(email):
-
+    """
+    Process the checkout for a user's shopping cart.
+    
+    Expects a JSON payload with 'payment_method' and 'address'. Validates the cart,
+    finalizes the order, updates the user's order history, and returns an order summary.
+    """
     data = request.get_json() or {}
     app.logger.debug("[DEBUG] checkout: Received data for email %s: %s", email, data)
 
@@ -688,6 +742,12 @@ def process_payment_endpoint(email: str):
 # ---------------------------
 @app.route("/api/cart/<email>", methods=["PUT"])
 def update_cart(email):
+    """
+    Update or create the shopping cart for a user.
+    
+    Expects a JSON payload with a list of items. Clears any existing items if the cart exists,
+    then adds the provided items and returns the updated cart details.
+    """
     data = request.get_json() or {}
     app.logger.debug("[DEBUG] update_cart: Received data for email %s: %s", email, data)
     
@@ -788,6 +848,11 @@ def update_inventory(furniture_id):
 
 @app.route("/api/users/<email>/password", methods=["PUT"])
 def update_password(email):
+    """
+    Update the password for a user.
+    
+    Expects a JSON payload with 'new_password' and updates the user's password if the user exists.
+    """
     data = request.get_json() or {}
     new_password = data.get("new_password")
     if not new_password:
@@ -800,6 +865,11 @@ def update_password(email):
 
 @app.route("/api/orders/<int:order_id>/status", methods=["PUT"])
 def update_order_status(order_id):
+    """
+    Update the status of an order.
+    
+    Expects a JSON payload with 'status' and updates the order's status if the order exists.
+    """
     data = request.get_json() or {}
     new_status = data.get("status")
     if not new_status:
@@ -896,6 +966,11 @@ def create_furniture():
 # ---------------------------
 @app.route("/api/inventory/<int:furniture_id>", methods=["DELETE"])
 def delete_inventory(furniture_id):
+    """
+    Delete a furniture item from the inventory.
+    
+    Searches for the furniture item by its ID and removes it if found, then updates the inventory persistence.
+    """
     found_item = None
     for item in list(inventory.items.keys()):
         if getattr(item, "id", None) == furniture_id:
@@ -911,6 +986,13 @@ def delete_inventory(furniture_id):
 
 @app.route("/api/cart/<email>/<item_id>", methods=["DELETE"])
 def delete_cart_item(email, item_id):
+    """
+    Remove an item from a user's shopping cart.
+
+    Searches for an item in the specified user's cart by matching the item_id.
+    If found, the item is removed and the updated total cart price is returned.
+    If not found, an error message is returned.
+    """
     if email not in shopping_carts:
         return jsonify({"error": "Cart not found for user"}), 404
 
