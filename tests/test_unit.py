@@ -748,6 +748,14 @@ def test_find_furniture_by_name_not_found(client):
     assert "error" in data
 
 def test_login_success(client):
+    """
+    Test that a registered user can successfully log in.
+    
+    Steps:
+      1. Register a new user.
+      2. Attempt login with the registered user's credentials.
+      3. Verify that the response status is 200 and that the returned user data matches the registered data.
+    """
     # First, register a user
     email = "login_success@example.com"
     password = "mypassword"
@@ -771,6 +779,13 @@ def test_login_success(client):
 
 
 def test_login_failure_wrong_credentials(client):
+    """
+    Test that login fails when wrong credentials are provided.
+    
+    Steps:
+      1. Attempt to log in using an unregistered email or incorrect password.
+      2. Verify that the response status is 401 and that an error message is returned.
+    """
     # Attempt to log in with an unregistered user or wrong password
     login_resp = client.post("/api/login", json={
         "email": "nonexistent@example.com",
@@ -782,6 +797,16 @@ def test_login_failure_wrong_credentials(client):
 
 
 def test_set_password_success(client):
+    """
+    Test that a user can successfully update their password.
+    
+    Steps:
+      1. Register a new user with an initial password.
+      2. Use the PUT endpoint to update the user's password.
+      3. Verify that the response confirms the password update.
+      4. Ensure that logging in with the old password fails.
+      5. Ensure that logging in with the new password succeeds.
+    """
     email = f"setpassword@example.com"
     old_password = "oldpassword"
     new_password = "newpassword"
@@ -817,6 +842,14 @@ def test_set_password_success(client):
     assert login_new.status_code == 200
 
 def test_check_password_success(client):
+    """
+    Test that the password check endpoint correctly verifies the user's password.
+    
+    Steps:
+      1. Register a new user.
+      2. Check the password using the appropriate endpoint.
+      3. Verify that the response confirms the password is correct.
+    """
     email = f"checkpass@example.com"
     password = "mypassword"
     # Register the user.
@@ -835,6 +868,14 @@ def test_check_password_success(client):
     assert data["password_correct"] is True
 
 def test_hash_password(client):
+    """
+    Test that the password hashing endpoint produces consistent results.
+    
+    Steps:
+      1. Send a password to be hashed.
+      2. Send the same password again.
+      3. Verify that both responses produce identical hashes.
+    """
     password = "testpassword"
     
     # First request to hash the password
@@ -852,7 +893,16 @@ def test_hash_password(client):
     assert data1["hashed_password"] == data2["hashed_password"]
 
 def test_set_order_status_success(client):
-    import uuid
+    """
+    Test that the order status can be successfully updated.
+    
+    Steps:
+      1. Register a new user.
+      2. Create a new furniture item.
+      3. Place an order using the newly created furniture item.
+      4. Update the order status using the PUT endpoint.
+      5. Verify that the response confirms the status update.
+    """
 
     # Register a user
     email = f"order_status_{uuid.uuid4()}@example.com"
@@ -891,6 +941,16 @@ def test_set_order_status_success(client):
     assert "Order status updated successfully" in data["message"]
 
 def test_get_order_status_success(client):
+    """
+    Test that the order status retrieval endpoint returns the correct order status.
+    
+    Steps:
+      1. Register a new user.
+      2. Create a new furniture item.
+      3. Place an order using the newly created furniture item.
+      4. Retrieve the order status using the GET endpoint.
+      5. Verify that the response includes the correct order_id and default status.
+    """
     # Register a user
     email = f"getstatus@example.com"
     client.post("/api/users", json={
