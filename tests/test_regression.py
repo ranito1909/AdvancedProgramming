@@ -138,7 +138,7 @@ def test_full_regression_flow(client):
             "items": [{"furniture_id": 0, "quantity": 1}, {"furniture_id": -1, "quantity": 70}]
         }
     )
-    # Example check (you can refine or remove as needed):
+    # Example check
     assert res_furniture_not_in_inventory.status_code in (400, 404), \
         "An order with items not in inventory should fail."
 
