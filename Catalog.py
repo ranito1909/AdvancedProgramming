@@ -24,6 +24,7 @@ class Furniture():
     An abstract base class representing a piece of furniture.
 
     Attributes:
+        id (int): The id of the furniture.
         name (str): The furniture name.
         description (str): A short description.
         price (float): The base price before discounts/taxes.
@@ -216,7 +217,6 @@ class Inventory:
                 obj = Shelf(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
             if obj is not None:
                 obj.id = row["id"]
-                # Here, row["quantity"] is a scalar (an int or np.int64)
                 self.items[obj] = row["quantity"]
 
         print("[DEBUG_Catalog]", f"Inventory loaded from {inventory_path}")
@@ -452,8 +452,6 @@ class CompositeItem(CartComponent):
             for child in self._children:
                 print("[DEBUG_Catlaog]",f"  - {child}")
             
-            # Optionally, you could raise a custom exception or return
-            # raise RuntimeError(f"Failed to remove {component}, not in the list.")
             return
 
 
