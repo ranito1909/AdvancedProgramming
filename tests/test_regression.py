@@ -342,7 +342,7 @@ def test_regression_validate_cart_valid(client):
 
     get_response = client.get(f"/api/checkout/{test_email}/validate")
     data = get_response.get_json()
-    assert data["cart_valid"] == True
+    assert data["cart_valid"], "Expected cart_valid to be True."
 
 def test_regression_validate_cart_invalid(client):
     """
@@ -373,4 +373,5 @@ def test_regression_validate_cart_invalid(client):
 
     get_response = client.get(f"/api/checkout/{test_email}/validate")
     data = get_response.get_json()
-    assert data["cart_valid"] == False
+    assert not data["cart_valid"], "Expected cart_valid to be False."
+
