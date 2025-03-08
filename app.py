@@ -242,6 +242,139 @@ def get_users():
         })
     return jsonify(users), 200
 
+# Helper function to locate a furniture item by its ID in the Inventory
+def get_furniture_item_by_id(furniture_id: int):
+    return next((item for item in inventory.items.keys() if getattr(item, "id", None) == furniture_id), None)
+
+@app.route("/api/inventory/<int:furniture_id>/quantity", methods=["GET"])
+def get_quantity_for_item(furniture_id):
+    """
+    Retrieve the available quantity for a specific furniture item by its ID.
+    
+    This endpoint uses the Inventory.get_quantity() method defined in Catalog.py.
+    """
+    furniture_item = get_furniture_item_by_id(furniture_id)
+    if not furniture_item:
+        return jsonify({"error": "Furniture item not found"}), 404
+
+    # Use the get_quantity() method of the Inventory instance without rewriting its functionality.
+    quantity = inventory.get_quantity(furniture_item)
+    return jsonify({"id": furniture_id, "quantity": quantity}), 200
+
+@app.route("/api/cart/<string:email>/view", methods=["GET"])
+def view_cart_endpoint(email: str):
+    """
+    Retrieve and display the contents of the shopping cart for the specified user.
+    
+    This endpoint uses the ShoppingCart.view_cart() method (from Catalog.py) to obtain a string
+    representing the cart contents. If no cart exists for the user, a 404 error is returned.
+    """
+    if email not in shopping_carts:
+        return jsonify({"error": "Shopping cart not found for user"}), 404
+
+    cart = shopping_carts[email]
+    cart_contents = cart.view_cart()
+    return jsonify({"cart": cart_contents}), 200
+
+@app.route("/api/checkout/<string:email>/validate", methods=["GET"])
+def validate_cart_endpoint(email: str):
+    """
+    Validate the shopping cart for the specified user.
+    
+    This endpoint creates a Checkout instance using the user's shopping cart and inventory,
+    and then calls the validate_cart() method to check if the items in the cart are available
+    in sufficient quantity.
+    """
+    # Check if the user exists.
+    if email not in User._users:
+        return jsonify({"error": "User not found"}), 404
+
+    # Check if the shopping cart exists for this user.
+    if email not in shopping_carts:
+        return jsonify({"error": "Shopping cart not found for user"}), 404
+
+    user = User._users[email]
+    cart = shopping_carts[email]
+    checkout_obj = Checkout(user, cart, inventory)
+    is_valid = checkout_obj.validate_cart()
+    return jsonify({"cart_valid": is_valid}), 200
+
+@app.route("/api/checkout/<string:email>/leaf_items", methods=["GET"])
+def get_leaf_items(email: str):
+    """
+    Retrieve the leaf items from the shopping cart for the specified user.
+    
+    This endpoint creates a Checkout instance and calls its _collect_leaf_items() method
+    on the shopping cart's root, returning a JSON list of leaf items (for debugging purposes).
+    """
+    # Check that the user exists.
+    if email not in User._users:
+        return jsonify({"error": "User not found"}), 404
+
+    # Check that the shopping cart exists for this user.
+    if email not in shopping_carts:
+        return jsonify({"error": "Shopping cart not found for user"}), 404
+
+    user = User._users[email]
+    cart = shopping_carts[email]
+    checkout_obj = Checkout(user, cart, inventory)
+    
+    # Call the private method _collect_leaf_items on the cart's root.
+    leaf_items = checkout_obj._collect_leaf_items(cart.root)
+    
+    # Build a JSON-friendly list of items.
+    items_list = []
+    for item in leaf_items:
+        items_list.append({
+            "name": item.name,
+            "unit_price": item.unit_price,
+            "quantity": item.quantity,
+            "total_price": item.get_price()
+        })
+    
+    return jsonify({"leaf_items": items_list}), 200
+
+@app.route("/api/checkout/<string:email>/find_furniture", methods=["GET"])
+def find_furniture_by_name_endpoint(email: str):
+    """
+    Retrieve a furniture item from inventory by name using Checkout._find_furniture_by_name().
+    
+    Expects a query parameter "name" with the furniture's name.
+    """
+    # Verify that the user exists.
+    if email not in User._users:
+        return jsonify({"error": "User not found"}), 404
+
+    # Verify that the shopping cart exists for this user.
+    if email not in shopping_carts:
+        return jsonify({"error": "Shopping cart not found for user"}), 404
+
+    # Get the furniture name from the query parameters.
+    furniture_name = request.args.get("name")
+    if not furniture_name:
+        return jsonify({"error": "Missing 'name' query parameter"}), 400
+
+    user = User._users[email]
+    cart = shopping_carts[email]
+    checkout_obj = Checkout(user, cart, inventory)
+    
+    # Use the internal method to find the furniture by name.
+    furniture_item = checkout_obj._find_furniture_by_name(furniture_name)
+    if not furniture_item:
+        return jsonify({"error": "Furniture not found"}), 404
+
+    # Build a response with furniture details.
+    response = {
+        "id": furniture_item.id,
+        "name": furniture_item.name,
+        "description": furniture_item.description,
+        "price": furniture_item.price,
+        "dimensions": furniture_item.dimensions,
+        "class": furniture_item.__class__.__name__,
+        "quantity": inventory.get_quantity(furniture_item)
+    }
+    return jsonify(response), 200
+
 # ---------------------------
 # POST Endpoints
 # ---------------------------
@@ -468,6 +601,42 @@ def remove_cart_item(email: str):
         "total_price": cart.get_total_price()
     }), 200
 
+@app.route("/api/checkout/<string:email>/payment", methods=["POST"])
+def process_payment_endpoint(email: str):
+    """
+    Process the payment for the shopping cart of the specified user.
+
+    Expects a JSON payload with:
+      - payment_method: A string indicating the payment method to use.
+
+    This endpoint creates a Checkout instance with the user's shopping cart and inventory,
+    sets the provided payment method, and calls process_payment() to simulate payment processing.
+    It returns a JSON response indicating whether the payment was successful.
+    """
+    # Check that the user exists.
+    if email not in User._users:
+        return jsonify({"error": "User not found"}), 404
+
+    # Check that the shopping cart exists for this user.
+    if email not in shopping_carts:
+        return jsonify({"error": "Shopping cart not found for user"}), 404
+
+    data = request.get_json() or {}
+    payment_method = data.get("payment_method")
+    if not payment_method:
+        return jsonify({"error": "Payment method is required"}), 400
+
+    user = User._users[email]
+    cart = shopping_carts[email]
+    checkout_obj = Checkout(user, cart, inventory)
+    checkout_obj.set_payment_method(payment_method)
+    
+    # Call process_payment() to simulate the payment processing.
+    payment_result = checkout_obj.process_payment()
+    if payment_result:
+        return jsonify({"payment_success": True}), 200
+    else:
+        return jsonify({"payment_success": False, "error": "Payment processing failed"}), 400
 
 # ---------------------------
 # PUT Endpoints

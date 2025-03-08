@@ -421,3 +421,328 @@ def test_checkout_success(client):
     assert "Order finalized successfully." in data["message"]
     assert "order_summary" in data
 
+def test_get_quantity_existing_item(client):
+    """
+    Unit Test: Verify that GET /api/inventory/<furniture_id>/quantity returns the correct quantity
+    for an existing furniture item.
+    """
+    # Create a furniture item using the POST endpoint.
+    post_response = client.post("/api/inventory", json={
+        "type": "Chair",
+        "name": "Test Chair for Quantity",
+        "description": "A chair for testing get_quantity endpoint",
+        "price": 150.0,
+        "dimensions": [40, 40, 90],
+        "quantity": 10,
+        "cushion_material": "leather"
+    })
+    assert post_response.status_code == 201, f"Expected 201, got {post_response.status_code}"
+    furniture_item = post_response.get_json()
+    furniture_id = furniture_item["id"]
+
+    # Retrieve the quantity for the created furniture item.
+    get_response = client.get(f"/api/inventory/{furniture_id}/quantity")
+    assert get_response.status_code == 200, f"Expected 200, got {get_response.status_code}"
+    data = get_response.get_json()
+    assert data["quantity"] == 10, f"Expected quantity 10, got {data['quantity']}"
+
+def test_get_quantity_non_existing_item(client):
+    """
+    Unit Test: Verify that GET /api/inventory/<furniture_id>/quantity returns a 404 error 
+    when the furniture item does not exist.
+    """
+    # Use a furniture_id that is unlikely to exist.
+    get_response = client.get("/api/inventory/9999/quantity")
+    assert get_response.status_code == 404, f"Expected 404, got {get_response.status_code}"
+    data = get_response.get_json()
+    assert "error" in data, "Expected error message in response"
+
+def test_view_cart_existing_cart(client):
+    """
+    Unit Test: Verify that GET /api/cart/<email>/view returns the formatted cart contents
+    when a shopping cart exists for the user.
+    """
+    test_email = "viewcartuser@example.com"
+    
+    # Register the user (if not already registered)
+    reg_response = client.post("/api/users", json={
+        "email": test_email,
+        "name": "View Cart User",
+        "password": "testpass"
+    })
+    assert reg_response.status_code == 201, f"User registration failed: {reg_response.status_code}"
+
+    # Add an item to the user's shopping cart.
+    # (Assuming furniture with id 1038 exists in inventory)
+    put_response = client.put(f"/api/cart/{test_email}", json={
+        "items": [{"furniture_id": 1038, "quantity": 2, "unit_price": 100}]
+    })
+    assert put_response.status_code == 200, f"Cart update failed: {put_response.status_code}"
+
+    # Retrieve the cart contents via the view_cart endpoint.
+    get_response = client.get(f"/api/cart/{test_email}/view")
+    assert get_response.status_code == 200, f"Expected 200, got {get_response.status_code}"
+    data = get_response.get_json()
+    
+    # Verify that the returned string contains expected substrings.
+    cart_str = data.get("cart", "")
+    assert f"Cart '{test_email}' contents:" in cart_str, "Cart header missing in response"
+    assert "LeafItem(" in cart_str, "Item details not found in cart view"
+    assert "Total price:" in cart_str, "Total price not displayed in cart view"
+
+def test_view_cart_non_existing_cart(client):
+    """
+    Unit Test: Verify that GET /api/cart/<email>/view returns a 404 error when no shopping cart exists
+    for the specified user.
+    """
+    test_email = "nonexistentcart@example.com"
+    
+    # Do NOT create a shopping cart for this email.
+    get_response = client.get(f"/api/cart/{test_email}/view")
+    assert get_response.status_code == 404, f"Expected 404, got {get_response.status_code}"
+    data = get_response.get_json()
+    assert "error" in data, "Expected an error message when cart does not exist"
+
+def test_validate_cart_valid(client):
+    """
+    Unit Test: Verify that the cart is valid when the requested quantities are within available inventory.
+    
+    Steps:
+      1. Register a user.
+      2. Create a furniture item (e.g. a Chair) with a sufficient quantity in inventory.
+      3. Update the user's cart with a quantity less than or equal to what's available.
+      4. Call the GET /api/checkout/<email>/validate endpoint and check that "cart_valid" is True.
+    """
+    test_email = "validcart@example.com"
+    
+    # Register the user.
+    reg_response = client.post("/api/users", json={
+        "email": test_email,
+        "name": "Valid Cart User",
+        "password": "testpass"
+    })
+    assert reg_response.status_code == 201
+
+    # Create a furniture item with quantity 10.
+    post_response = client.post("/api/inventory", json={
+        "type": "Chair",
+        "name": "Valid Cart Chair",
+        "description": "A chair for valid cart test",
+        "price": 100,
+        "dimensions": [40, 40, 90],
+        "quantity": 10,
+        "cushion_material": "leather"
+    })
+    assert post_response.status_code == 201
+    furniture_item = post_response.get_json()
+    furniture_id = furniture_item["id"]
+
+    # Update the user's cart with a quantity of 5 (within the available 10).
+    put_response = client.put(f"/api/cart/{test_email}", json={
+        "items": [{"furniture_id": furniture_id, "quantity": 5, "unit_price": 100}]
+    })
+    assert put_response.status_code == 200
+
+    # Validate the cart. Expect it to be valid.
+    get_response = client.get(f"/api/checkout/{test_email}/validate")
+    assert get_response.status_code == 200
+    data = get_response.get_json()
+    assert data["cart_valid"] == True, f"Expected cart_valid to be True, got {data['cart_valid']}"
+
+def test_validate_cart_invalid(client):
+    """
+    Unit Test: Verify that the cart is invalid when the requested quantities exceed available inventory.
+    
+    Steps:
+      1. Register a user.
+      2. Create a furniture item (e.g. a Chair) with a limited quantity in inventory.
+      3. Update the user's cart with a quantity greater than what's available.
+      4. Call the GET /api/checkout/<email>/validate endpoint and check that "cart_valid" is False.
+    """
+    test_email = "invalidcart@example.com"
+    
+    # Register the user.
+    reg_response = client.post("/api/users", json={
+        "email": test_email,
+        "name": "Invalid Cart User",
+        "password": "testpass"
+    })
+    assert reg_response.status_code == 201
+
+    # Create a furniture item with quantity 3.
+    post_response = client.post("/api/inventory", json={
+        "type": "Chair",
+        "name": "Invalid Cart Chair",
+        "description": "A chair for invalid cart test",
+        "price": 100,
+        "dimensions": [40, 40, 90],
+        "quantity": 3,
+        "cushion_material": "foam"
+    })
+    assert post_response.status_code == 201
+    furniture_item = post_response.get_json()
+    furniture_id = furniture_item["id"]
+
+    # Update the user's cart with a quantity of 4 (exceeding available quantity).
+    put_response = client.put(f"/api/cart/{test_email}", json={
+        "items": [{"furniture_id": furniture_id, "quantity": 4, "unit_price": 100}]
+    })
+    assert put_response.status_code == 200
+
+    # Validate the cart. Expect it to be invalid.
+    get_response = client.get(f"/api/checkout/{test_email}/validate")
+    assert get_response.status_code == 200
+    data = get_response.get_json()
+    assert data["cart_valid"] == False, f"Expected cart_valid to be False, got {data['cart_valid']}"
+
+def test_process_payment_success(client):
+    """
+    Unit Test: Verify that POST /api/checkout/<email>/payment returns a successful payment
+    when a valid payment_method is provided.
+    """
+    test_email = "paymentuser@example.com"
+    
+    # Register the user.
+    reg_response = client.post("/api/users", json={
+        "email": test_email,
+        "name": "Payment User",
+        "password": "paymentpass"
+    })
+    assert reg_response.status_code == 201, f"User registration failed: {reg_response.status_code}"
+    
+    # Update the cart with an item.
+    put_response = client.put(f"/api/cart/{test_email}", json={
+        "items": [{"furniture_id": 1038, "quantity": 2, "unit_price": 100}]
+    })
+    assert put_response.status_code == 200, f"Cart update failed: {put_response.status_code}"
+    
+    # Process payment with a valid payment method.
+    payment_response = client.post(f"/api/checkout/{test_email}/payment", json={
+        "payment_method": "Credit Card"
+    })
+    assert payment_response.status_code == 200, f"Expected 200, got {payment_response.status_code}"
+    data = payment_response.get_json()
+    assert data.get("payment_success") is True, "Expected payment_success to be True"
+
+def test_process_payment_missing_method(client):
+    """
+    Unit Test: Verify that POST /api/checkout/<email>/payment returns a 400 error
+    when the payment_method is missing.
+    """
+    test_email = "paymentmissing@example.com"
+    
+    # Register the user.
+    reg_response = client.post("/api/users", json={
+        "email": test_email,
+        "name": "Missing Payment User",
+        "password": "missingpass"
+    })
+    assert reg_response.status_code == 201, f"User registration failed: {reg_response.status_code}"
+    
+    # Update the cart with an item.
+    put_response = client.put(f"/api/cart/{test_email}", json={
+        "items": [{"furniture_id": 1038, "quantity": 2, "unit_price": 100}]
+    })
+    assert put_response.status_code == 200, f"Cart update failed: {put_response.status_code}"
+    
+    # Process payment without providing a payment method.
+    payment_response = client.post(f"/api/checkout/{test_email}/payment", json={})
+    assert payment_response.status_code == 400, f"Expected 400, got {payment_response.status_code}"
+    data = payment_response.get_json()
+    assert "error" in data, "Expected an error message when payment method is missing"
+
+def test_collect_leaf_items_existing_cart(client):
+    """
+    Unit Test: Verify that GET /api/checkout/<email>/leaf_items returns a list of leaf items
+    when the shopping cart contains items.
+    """
+    email = "leafitemsuser@example.com"
+    # Register the user.
+    reg_response = client.post("/api/users", json={"email": email, "name": "Leaf Items User", "password": "leafpass"})
+    assert reg_response.status_code == 201
+
+    # Update the shopping cart with an item.
+    put_response = client.put(f"/api/cart/{email}", json={"items": [{"furniture_id": 1038, "quantity": 3, "unit_price": 100}]})
+    assert put_response.status_code == 200
+
+    # Retrieve leaf items from the cart.
+    get_response = client.get(f"/api/checkout/{email}/leaf_items")
+    assert get_response.status_code == 200
+    data = get_response.get_json()
+    assert "leaf_items" in data
+    leaf_items = data["leaf_items"]
+    # Verify that we have at least one leaf item and the keys exist.
+    assert isinstance(leaf_items, list)
+    assert len(leaf_items) > 0
+    first_item = leaf_items[0]
+    assert "name" in first_item
+    assert "unit_price" in first_item
+    assert "quantity" in first_item
+    assert "total_price" in first_item
+
+def test_collect_leaf_items_no_cart(client):
+    """
+    Unit Test: Verify that GET /api/checkout/<email>/leaf_items returns a 404 error
+    when no shopping cart exists for the specified user.
+    """
+    email = "nocart@example.com"
+    get_response = client.get(f"/api/checkout/{email}/leaf_items")
+    assert get_response.status_code == 404
+    data = get_response.get_json()
+    assert "error" in data
+
+def test_find_furniture_by_name_success(client):
+    """
+    Unit Test: Verify that GET /api/checkout/<email>/find_furniture returns the correct
+    furniture details when a matching furniture item exists.
+    """
+    email = "findfurnitureuser@example.com"
+    # Register the user.
+    reg_response = client.post("/api/users", json={"email": email, "name": "Find Furniture User", "password": "findpass"})
+    assert reg_response.status_code == 201
+
+    # Create a furniture item with a known name.
+    post_response = client.post("/api/inventory", json={
+        "type": "Chair",
+        "name": "Test Find Furniture Chair",
+        "description": "Chair for find furniture test",
+        "price": 120.0,
+        "dimensions": [40, 40, 90],
+        "quantity": 5,
+        "cushion_material": "fabric"
+    })
+    assert post_response.status_code == 201
+
+    # Update the user's shopping cart (even if the cart is not used by the _find_furniture_by_name logic,
+    # the endpoint requires a cart to exist).
+    put_response = client.put(f"/api/cart/{email}", json={
+        "items": [{"furniture_id": post_response.get_json()["id"], "quantity": 1, "unit_price": 120}]
+    })
+    assert put_response.status_code == 200
+
+    # Call the find_furniture endpoint with the furniture name.
+    get_response = client.get(f"/api/checkout/{email}/find_furniture?name=Test%20Find%20Furniture%20Chair")
+    assert get_response.status_code == 200
+    data = get_response.get_json()
+    assert data["name"] == "Test Find Furniture Chair"
+    assert data["quantity"] >= 1
+
+def test_find_furniture_by_name_not_found(client):
+    """
+    Unit Test: Verify that GET /api/checkout/<email>/find_furniture returns a 404 error
+    when no furniture item matches the given name.
+    """
+    email = "findfurnaturenotfound@example.com"
+    # Register the user.
+    reg_response = client.post("/api/users", json={"email": email, "name": "Not Found User", "password": "notfoundpass"})
+    assert reg_response.status_code == 201
+
+    # Create an empty shopping cart for the user.
+    put_response = client.put(f"/api/cart/{email}", json={"items": []})
+    assert put_response.status_code == 200
+
+    # Search for a furniture name that does not exist.
+    get_response = client.get(f"/api/checkout/{email}/find_furniture?name=Nonexistent%20Chair")
+    assert get_response.status_code == 404
+    data = get_response.get_json()
+    assert "error" in data
