@@ -611,10 +611,10 @@ class OrderStatus(Enum):
     """
     Enum representing possible order statuses.
     """
-    PENDING = "pending"
-    SHIPPED = "shipped"
-    DELIVERED = "delivered"
-    CANCELED = "canceled"
+    PENDING = "PENDING"
+    SHIPPED = "SHIPPED"
+    DELIVERED = "DELIVERED"
+    CANCELED = "CANCELED"
 
 # --------------------------------------------------------------------
 # Order
