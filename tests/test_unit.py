@@ -547,7 +547,7 @@ def test_validate_cart_valid(client):
     get_response = client.get(f"/api/checkout/{test_email}/validate")
     assert get_response.status_code == 200
     data = get_response.get_json()
-    assert data["cart_valid"] == True, f"Expected cart_valid to be True, got {data['cart_valid']}"
+    assert data["cart_valid"], f"Expected cart_valid to be True, got {data['cart_valid']}"
 
 def test_validate_cart_invalid(client):
     """
@@ -593,7 +593,7 @@ def test_validate_cart_invalid(client):
     get_response = client.get(f"/api/checkout/{test_email}/validate")
     assert get_response.status_code == 200
     data = get_response.get_json()
-    assert data["cart_valid"] == False, f"Expected cart_valid to be False, got {data['cart_valid']}"
+    assert not data["cart_valid"], f"Expected cart_valid to be False, got {data['cart_valid']}"
 
 def test_process_payment_success(client):
     """
