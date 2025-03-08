@@ -7,6 +7,11 @@ from datetime import datetime
 import logging
 import os
 import pandas as pd
+import pickle
+
+
+# Constants
+TAX_RATE = 0.18
 
 # Configure logging to report warnings and errors during operations.
 logging.basicConfig(level=logging.INFO)
@@ -14,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 # --------------------------------------------------------------------
 # Furniture (Abstract Base Class)
 # --------------------------------------------------------------------
-class Furniture(ABC):
+class Furniture():
     """
     An abstract base class representing a piece of furniture.
 
@@ -31,31 +36,23 @@ class Furniture(ABC):
         self.price = price
         self.dimensions = dimensions
 
-    @abstractmethod
     def apply_discount(self, percentage: float) -> None:
-        """
-        Apply a discount to the price.
-        
-        :param percentage: Discount percentage (0-100).
-        :raises ValueError: If percentage is not within 0-100.
-        """
+            if not (0 <= percentage <= 100):
+                raise ValueError("Discount percentage must be between 0 and 100.")
+            discount_amount = self.price * (percentage / 100)
+            self.price -= discount_amount
     
-    @abstractmethod
-    def apply_tax(self, tax_rate: float) -> None:
-        """
-        Apply a tax to the price.
-        
-        :param tax_rate: Tax rate as a decimal (e.g., 0.17 for 17%).
-        """
+    def apply_tax(self, tax_rate: float = TAX_RATE) -> None:
+        self.price *= 1 + tax_rate
     
-    @abstractmethod
     def check_availability(self) -> bool:
-        """
-        Check if this furniture item is available in the inventory.
-        
-        :return: True if available, False otherwise.
-        """
-    
+        # Retrieve the singleton Inventory instance locally to avoid circular dependency.
+        inventory = Inventory.get_instance()
+        available = inventory.items.get(self, 0) > 0
+        if not available:
+            logging.warning(f"This furniture '{self.name}' is not available in inventory.")
+        return available
+
     def __str__(self) -> str:
         return f"{self.name} ({self.description}): {self.price:.2f} ₪"
 
@@ -72,23 +69,6 @@ class Chair(Furniture):
     def __init__(self, id: int, name: str, description: str, price: float, dimensions: Tuple[float, ...], cushion_material: str) -> None:
         super().__init__(id, name, description, price, dimensions)
         self.cushion_material = cushion_material
-
-    def apply_discount(self, percentage: float) -> None:
-        if not (0 <= percentage <= 100):
-            raise ValueError("Discount percentage must be between 0 and 100.")
-        discount_amount = self.price * (percentage / 100)
-        self.price -= discount_amount
-
-    def apply_tax(self, tax_rate: float) -> None:
-        self.price *= 1 + tax_rate
-
-    def check_availability(self) -> bool:
-        # Retrieve the singleton Inventory instance locally to avoid circular dependency.
-        inventory = Inventory.get_instance()
-        available = inventory.items.get(self, 0) > 0
-        if not available:
-            logging.warning(f"Chair '{self.name}' is not available in inventory.")
-        return available
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -108,22 +88,6 @@ class Table(Furniture):
         super().__init__(id, name, description, price, dimensions)
         self.frame_material = frame_material
 
-    def apply_discount(self, percentage: float) -> None:
-        if not (0 <= percentage <= 100):
-            raise ValueError("Discount percentage must be between 0 and 100.")
-        discount_amount = self.price * (percentage / 100)
-        self.price -= discount_amount
-
-    def apply_tax(self, tax_rate: float) -> None:
-        self.price *= 1 + tax_rate
-
-    def check_availability(self) -> bool:
-        inventory = Inventory.get_instance()
-        available = inventory.items.get(self, 0) > 0
-        if not available:
-            logging.warning(f"Table '{self.name}' is not available in inventory.")
-        return available
-
     def __str__(self) -> str:
         base_str = super().__str__()
         return f"{base_str}, Frame Material: {self.frame_material}"
@@ -141,22 +105,6 @@ class Sofa(Furniture):
     def __init__(self, id: int, name: str, description: str, price: float, dimensions: Tuple[float, ...], capacity: int) -> None:
         super().__init__(id, name, description, price, dimensions)
         self.capacity = capacity
-
-    def apply_discount(self, percentage: float) -> None:
-        if not (0 <= percentage <= 100):
-            raise ValueError("Discount percentage must be between 0 and 100.")
-        discount_amount = self.price * (percentage / 100)
-        self.price -= discount_amount
-
-    def apply_tax(self, tax_rate: float) -> None:
-        self.price *= 1 + tax_rate
-
-    def check_availability(self) -> bool:
-        inventory = Inventory.get_instance()
-        available = inventory.items.get(self, 0) > 0
-        if not available:
-            logging.warning(f"Sofa '{self.name}' is not available in inventory.")
-        return available
 
     def __str__(self) -> str:
         base_str = super().__str__()
@@ -176,22 +124,6 @@ class Lamp(Furniture):
         super().__init__(id, name, description, price, dimensions)
         self.light_source = light_source
 
-    def apply_discount(self, percentage: float) -> None:
-        if not (0 <= percentage <= 100):
-            raise ValueError("Discount percentage must be between 0 and 100.")
-        discount_amount = self.price * (percentage / 100)
-        self.price -= discount_amount
-
-    def apply_tax(self, tax_rate: float) -> None:
-        self.price *= 1 + tax_rate
-
-    def check_availability(self) -> bool:
-        inventory = Inventory.get_instance()
-        available = inventory.items.get(self, 0) > 0
-        if not available:
-            logging.warning(f"Lamp '{self.name}' is not available in inventory.")
-        return available
-
     def __str__(self) -> str:
         base_str = super().__str__()
         return f"{base_str}, Light Source: {self.light_source}"
@@ -209,23 +141,7 @@ class Shelf(Furniture):
     def __init__(self, id: int, name: str, description: str, price: float, dimensions: Tuple[float, ...], wall_mounted: bool) -> None:
         super().__init__(id, name, description, price, dimensions)
         self.wall_mounted = wall_mounted
-
-    def apply_discount(self, percentage: float) -> None:
-        if not (0 <= percentage <= 100):
-            raise ValueError("Discount percentage must be between 0 and 100.")
-        discount_amount = self.price * (percentage / 100)
-        self.price -= discount_amount
-
-    def apply_tax(self, tax_rate: float) -> None:
-        self.price *= 1 + tax_rate
-
-    def check_availability(self) -> bool:
-        inventory = Inventory.get_instance()
-        available = inventory.items.get(self, 0) > 0
-        if not available:
-            logging.warning(f"Shelf '{self.name}' is not available in inventory.")
-        return available
-
+        
     def __str__(self) -> str:
         base_str = super().__str__()
         return f"{base_str}, Wall Mounted: {self.wall_mounted}"
@@ -258,55 +174,53 @@ class Inventory:
         return Inventory._instance
 
     def load_inventory(self, filename="inventory.pkl", storage_dir="storage") -> None:
-        """
-        Load inventory data from a pickle file and populate the inventory dictionary.
-        
-        Args:
-            filename (str): Name of the pickle file (default "inventory.pkl").
-            storage_dir (str): The directory where the pickle file is located.
-            This parameter lets you choose where the persisted inventory is stored.
-        
-        This method attempts to load the inventory from a persisted pickle file. For each row in the DataFrame,
-        it reconstructs the appropriate Furniture object. If extra attributes (like cushion_material for Chair)
-        are missing, default values are provided.
-        """
-        filepath = os.path.join(storage_dir, filename)
-        if os.path.exists(filepath):
-            inventory_df = pd.read_pickle(filepath)
-            if not inventory_df.empty:
-                # Find the largest ID in the DataFrame
-                max_id = inventory_df["id"].max()
-                if pd.notna(max_id):
-                    self.next_furniture_id = int(max_id) + 1
-            for _, row in inventory_df.iterrows():
-                furniture_class_name = row["class"]
-                # Reconstruct the furniture object based on its type.
-                if furniture_class_name == "Chair":
-                    # Chair requires an extra cushion_material parameter.
-                    extra = row.get("cushion_material", "default_cushion")
-                    print(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                    obj = Chair(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                elif furniture_class_name == "Table":
-                    extra = row.get("frame_material", "default_frame")
-                    obj = Table(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                elif furniture_class_name == "Sofa":
-                    extra = row.get("capacity", 1)  # Default capacity if missing.
-                    obj = Sofa(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                elif furniture_class_name == "Lamp":
-                    extra = row.get("light_source", "default_light_source")
-                    obj = Lamp(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                elif furniture_class_name == "Shelf":
-                    extra = row.get("wall_mounted", False)
-                    obj = Shelf(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
-                else:
-                    # Fallback: if the furniture type is unknown, try to construct without extra parameters.
-                    obj = None  # Or raise an error if appropriate.
-                if obj is not None:
-                    obj.id = row["id"]
-                    self.items[obj] = row["quantity"]
-            print(f"Inventory loaded from {filepath}")
-        else:
-            print(f"No persisted inventory file found at {filepath}. Starting with an empty inventory.")
+        inventory_path = os.path.join(storage_dir, filename)
+        if not os.path.exists(inventory_path) or os.path.getsize(inventory_path) == 0:
+            print("[DEBUG_Catalog]", "[DEBUG] Inventory file is empty. Initializing empty inventory.")
+            self.items = {}
+            return
+
+        try:
+            # Load the DataFrame from the pickle file
+            inventory_df = pd.read_pickle(inventory_path)
+        except (EOFError, pickle.UnpicklingError):
+            print("[DEBUG_Catalog]", "[ERROR] Inventory file is corrupted or empty. Resetting inventory.")
+            self.items = {}
+            return
+
+        # Update next_furniture_id based on the max id in the DataFrame
+        if not inventory_df.empty:
+            max_id = inventory_df["id"].max()
+            if pd.notna(max_id):
+                self.next_furniture_id = int(max_id) + 1
+
+        # Rebuild the items dictionary
+        self.items = {}  # Ensure items is a dictionary.
+        for _, row in inventory_df.iterrows():
+            furniture_class_name = row["class"]
+            obj = None
+            if furniture_class_name == "Chair":
+                extra = row.get("cushion_material", "default_cushion")
+                obj = Chair(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+            elif furniture_class_name == "Table":
+                extra = row.get("frame_material", "default_frame")
+                obj = Table(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+            elif furniture_class_name == "Sofa":
+                extra = row.get("capacity", 1)
+                obj = Sofa(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+            elif furniture_class_name == "Lamp":
+                extra = row.get("light_source", "default_light_source")
+                obj = Lamp(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+            elif furniture_class_name == "Shelf":
+                extra = row.get("wall_mounted", False)
+                obj = Shelf(row["id"], row["name"], row["description"], row["price"], tuple(row["dimensions"]), extra)
+            if obj is not None:
+                obj.id = row["id"]
+                # Here, row["quantity"] is a scalar (an int or np.int64)
+                self.items[obj] = row["quantity"]
+
+        print("[DEBUG_Catalog]", f"Inventory loaded from {inventory_path}")
+
 
     def get_next_furniture_id(self) -> int:
         """
@@ -332,10 +246,10 @@ class Inventory:
         :return: True if removal succeeded, otherwise False.
         """
         if furniture not in self.items:
-            logging.error(f"Attempted to remove non-existent item: {furniture.name}")
+            #logging.error("[DEBUG_CATALOG]",f"Attempted to remove non-existent item: {furniture.name}")
             return False
         if self.items[furniture] < quantity:
-            logging.error(f"Not enough quantity of {furniture.name} to remove.")
+            #logging.error("[DEBUG_CATALOG]",f"Not enough quantity of {furniture.name} to remove.")
             return False
         self.items[furniture] -= quantity
         if self.items[furniture] <= 0:
@@ -349,7 +263,7 @@ class Inventory:
         :return: True if update succeeded, False otherwise.
         """
         if furniture not in self.items:
-            logging.error(f"Item {furniture.name} not found during update.")
+            #logging.error("[DEBUG_CATALOG]",f"Item {furniture.name} not found during update.")
             return False
         if new_quantity <= 0:
             del self.items[furniture]
@@ -525,10 +439,30 @@ class CompositeItem(CartComponent):
         self._children.append(component)
 
     def remove(self, component: CartComponent) -> None:
-        self._children.remove(component)
+        """
+        Attempt to remove 'component' from the children list.
+        If not present, log the current list contents instead of raising ValueError.
+        """
+        try:
+            self._children.remove(component)
+        except ValueError:
+            # Log or print a helpful message
+            print("[DEBUG_Catlaog]",f"[DEBUG] remove: Attempted to remove {component}, but it wasn't found.")
+            print("[DEBUG_Catlaog]","[DEBUG] remove: Current _children are:")
+            for child in self._children:
+                print("[DEBUG_Catlaog]",f"  - {child}")
+            
+            # Optionally, you could raise a custom exception or return
+            # raise RuntimeError(f"Failed to remove {component}, not in the list.")
+            return
+
 
     def get_price(self) -> float:
-        return sum(child.get_price() for child in self._children)
+        total_price = 0
+        for child in self._children:
+            total_price += child.get_price()
+        print(f"The total price of this purchase after tax is: {total_price * (1 + TAX_RATE)}")
+        return total_price * (1 + TAX_RATE)
 
     def apply_discount(self, percentage: float) -> None:
         for child in self._children:
@@ -570,7 +504,6 @@ class ShoppingCart:
             lines.append(f"- Item: {component}, Price: {component.get_price():.2f}")
         lines.append(f"\nTotal price: {self.get_total_price():.2f}")
         return "\n".join(lines)
-
 # --------------------------------------------------------------------
 # Checkout
 # --------------------------------------------------------------------
@@ -597,31 +530,31 @@ class Checkout:
         for item in leaf_items:
             furniture_in_inventory = self._find_furniture_by_name(item.name)
             if not furniture_in_inventory:
-                logging.error(f"Furniture '{item.name}' not found during checkout.")
+                ##logging.error(f"[DEBUG_CATALOG] Not enough '{item.name}': required {required_qty}, available {available_qty}.")
                 return False
             required_qty = item.quantity
             available_qty = self.inventory.get_quantity(furniture_in_inventory)
             if required_qty > available_qty:
-                logging.error(f"Not enough '{item.name}': required {required_qty}, available {available_qty}.")
+                ##logging.error("[DEBUG_CATALOG]",f"Not enough '{item.name}': required {required_qty}, available {available_qty}.")
                 return False
         return True
 
     def process_payment(self) -> bool:
         if not self.payment_method:
-            logging.error("Payment method not set.")
+            #logging.error("[DEBUG_CATALOG]","Payment method not set.")
             return False
         # Mock payment processing
         return True
 
     def finalize_order(self) -> bool:
         if self.order_finalized:
-            logging.error("Order already finalized.")
+            #logging.error("[DEBUG_CATALOG]","Order already finalized.")
             return False
         if not self.validate_cart():
-            logging.error("Cart validation failed during checkout.")
+            #logging.error("[DEBUG_CATALOG]","Cart validation failed during checkout.")
             return False
         if not self.process_payment():
-            logging.error("Payment processing failed.")
+            #logging.error("[DEBUG_CATALOG]","Payment processing failed.")
             return False
 
         leaf_items = self._collect_leaf_items(self.cart.root)
