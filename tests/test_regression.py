@@ -8,6 +8,7 @@ import pandas as pd
 
 ])
 def test_furniture_creation_and_retrieval(client, furniture_data):
+    """Test that creating a furniture item via POST /api/inventory and retrieving it via GET /api/furniture works as expected."""
     response = client.post("/api/inventory", json=furniture_data)
     assert response.status_code == 201
     fid = response.get_json()["id"]
@@ -22,6 +23,7 @@ def test_furniture_creation_and_retrieval(client, furniture_data):
 ])
 
 def test_user_registration_and_profile_update(client, user_data):
+    """Test that a user can be registered and then updated (profile changes) using the appropriate endpoints."""
     response = client.post("/api/users", json=user_data)
     assert response.status_code == 201
 
@@ -33,6 +35,7 @@ def test_user_registration_and_profile_update(client, user_data):
     assert updated_user["address"] == "123 Regression Ave"
 
 def test_invalid_order_creation(client):
+    """Test that creating an order with empty items returns a 400 error."""
     # Register a valid user.
     client.post("/api/users", json={
         "email": "valid@example.com",
@@ -43,11 +46,13 @@ def test_invalid_order_creation(client):
     assert response.status_code == 400, "Order should fail when items are empty"
 
 def test_invalid_cart_update(client):
+    """Test that updating a shopping cart for a non-existent user or invalid furniture returns a 404 error."""
     response = client.put("/api/cart/invalid@example.com", json={"items": [{"furniture_id": 9999, "quantity": 1}]})
     assert response.status_code == 404, "Cart update should fail for non-existent furniture"
 
 
 def test_discount_application(client):
+    """Test that applying a discount to an inventory item and checking out works correctly."""
     # First, register the user for discount application.
     client.post("/api/users", json={
         "email": "discount@example.com",
@@ -138,7 +143,7 @@ def test_full_regression_flow(client):
             "items": [{"furniture_id": 0, "quantity": 1}, {"furniture_id": -1, "quantity": 70}]
         }
     )
-    # Example check (you can refine or remove as needed):
+    # Example check
     assert res_furniture_not_in_inventory.status_code in (400, 404), \
         "An order with items not in inventory should fail."
 
