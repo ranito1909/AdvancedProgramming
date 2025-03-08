@@ -903,7 +903,6 @@ def test_set_order_status_success(client):
       4. Update the order status using the PUT endpoint.
       5. Verify that the response confirms the status update.
     """
-    import uuid
 
     # Register a user
     email = f"order_status_{uuid.uuid4()}@example.com"
