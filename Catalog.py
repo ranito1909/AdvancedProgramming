@@ -31,6 +31,16 @@ class Furniture():
         dimensions (Tuple[float, ...]): Dimensions (e.g., width, depth, height).
     """
     def __init__(self, id: int, name: str, description: str, price: float, dimensions: Tuple[float, ...]) -> None:
+        """
+        Initialize a Furniture instance.
+
+        Args:
+            id (int): The identifier for the furniture.
+            name (str): The name of the furniture.
+            description (str): A short description of the furniture.
+            price (float): The price of the furniture.
+            dimensions (Tuple[float, ...]): The dimensions of the furniture.
+        """
         self.id = id
         self.name = name
         self.description = description
@@ -38,15 +48,24 @@ class Furniture():
         self.dimensions = dimensions
 
     def apply_discount(self, percentage: float) -> None:
-            if not (0 <= percentage <= 100):
-                raise ValueError("Discount percentage must be between 0 and 100.")
-            discount_amount = self.price * (percentage / 100)
-            self.price -= discount_amount
+        """
+        Apply a discount to the furniture's price.
+        """
+        if not (0 <= percentage <= 100):
+            raise ValueError("Discount percentage must be between 0 and 100.")
+        discount_amount = self.price * (percentage / 100)
+        self.price -= discount_amount
     
     def apply_tax(self, tax_rate: float = TAX_RATE) -> None:
+        """
+        Apply a tax to the furniture's price.
+        """
         self.price *= 1 + tax_rate
     
     def check_availability(self) -> bool:
+        """
+        Check if the furniture is available in the inventory.
+        """
         # Retrieve the singleton Inventory instance locally to avoid circular dependency.
         inventory = Inventory.get_instance()
         available = inventory.items.get(self, 0) > 0
@@ -55,6 +74,9 @@ class Furniture():
         return available
 
     def __str__(self) -> str:
+        """
+        Return a string representation of the furniture.
+        """
         return f"{self.name} ({self.description}): {self.price:.2f} ₪"
 
 # --------------------------------------------------------------------
@@ -160,6 +182,9 @@ class Inventory:
     _instance: Optional[Inventory] = None
 
     def __init__(self) -> None:
+        """
+        Initialize the Inventory instance and load persistent inventory data.
+        """
         if Inventory._instance is not None:
             raise Exception("Inventory is a singleton. Use Inventory.get_instance() instead.")
         self.items: Dict[Furniture, int] = {}
@@ -170,11 +195,17 @@ class Inventory:
 
     @staticmethod
     def get_instance() -> Inventory:
+        """
+        Get the singleton instance of the Inventory.
+        """
         if Inventory._instance is None:
             Inventory()
         return Inventory._instance
 
     def load_inventory(self, filename="inventory.pkl", storage_dir="storage") -> None:
+        """
+        Load inventory data from a pickle file.
+        """
         inventory_path = os.path.join(storage_dir, filename)
         if not os.path.exists(inventory_path) or os.path.getsize(inventory_path) == 0:
             print("[DEBUG_Catalog]", "[DEBUG] Inventory file is empty. Initializing empty inventory.")
@@ -317,6 +348,16 @@ class User:
     _users: Dict[str, User] = {}
 
     def __init__(self, name: str, email: str, password_hash: str, address: str = "", order_history: Optional[List[str]] = None) -> None:
+        """
+        Initialize a User instance.
+
+        Args:
+            name (str): The user's name.
+            email (str): The user's email.
+            password_hash (str): The hashed password.
+            address (str): The user's address.
+            order_history (Optional[List[str]]): The user's order history.
+        """
         self.name = name
         self.email = email
         self.password_hash = password_hash
@@ -325,6 +366,9 @@ class User:
 
     @classmethod
     def register_user(cls, name: str, email: str, raw_password: str, address: str = "") -> User:
+        """
+        Register a new user.
+        """
         if email in cls._users:
             raise ValueError(f"User with email '{email}' already exists.")
         password_hash = cls._hash_password(raw_password)
@@ -334,6 +378,9 @@ class User:
 
     @classmethod
     def login_user(cls, email: str, raw_password: str) -> Optional[User]:
+        """
+        Log in a user with the provided credentials.
+        """
         user = cls._users.get(email)
         if user and user.check_password(raw_password):
             return user
@@ -341,32 +388,53 @@ class User:
 
     @classmethod
     def get_user(cls, email: str) -> Optional[User]:
+        """
+        Retrieve a user by email.
+        """
         return cls._users.get(email)
 
     @classmethod
     def delete_user(cls, email: str) -> bool:
+        """
+        Delete a user from the system.
+        """
         if email in cls._users:
             del cls._users[email]
             return True
         return False
 
     def set_password(self, raw_password: str) -> None:
+        """
+        Set a new password for the user.
+        """
         self.password_hash = self._hash_password(raw_password)
 
     def check_password(self, raw_password: str) -> bool:
+        """
+        Verify the provided password against the stored hash.
+        """
         return self._hash_password(raw_password) == self.password_hash
 
     def update_profile(self, name: Optional[str] = None, address: Optional[str] = None) -> None:
+        """
+        Update the user's profile information.
+        """
         if name:
             self.name = name
         if address:
             self.address = address
 
     def add_order(self, order_info: str) -> None:
+        """
+        Add an order to the user's order history.
+        """
         self.order_history.append(order_info)
 
     @staticmethod
     def _hash_password(raw_password: str) -> str:
+        """
+        Generate a SHA-256 hash of the provided raw password.
+        """
         return hashlib.sha256(raw_password.encode("utf-8")).hexdigest()
 
 # --------------------------------------------------------------------
@@ -389,9 +457,15 @@ class CartComponent(ABC):
         """
     
     def add(self, component: CartComponent) -> None:
+        """
+        Add a child component to this component.
+        """
         raise NotImplementedError("This component does not support adding children.")
 
     def remove(self, component: CartComponent) -> None:
+        """
+        Remove a child component from this component.
+        """
         raise NotImplementedError("This component does not support removing children.")
 
 # --------------------------------------------------------------------
@@ -407,21 +481,38 @@ class LeafItem(CartComponent):
         quantity (int): Number of units.
     """
     def __init__(self, name: str, unit_price: float, quantity: int = 1) -> None:
+        """
+        Initialize a LeafItem.
+
+        Args:
+            name (str): The item name.
+            unit_price (float): Price per unit.
+            quantity (int): Number of units (default is 1).
+        """
         self.name = name
         self.unit_price = unit_price
         self.quantity = quantity
         self._current_price = unit_price  # Tracks price after discount
 
     def get_price(self) -> float:
+        """
+        Calculate the total price for the leaf item.
+        """
         return self._current_price * self.quantity
 
     def apply_discount(self, percentage: float) -> None:
+        """
+        Apply a discount to the leaf item's unit price.
+        """
         if not (0 <= percentage <= 100):
             raise ValueError("Discount percentage must be between 0 and 100.")
         discount_amount = self.unit_price * (percentage / 100)
         self._current_price = self.unit_price - discount_amount
 
     def __str__(self) -> str:
+        """
+        Return a string representation of the leaf item.
+        """
         return f"LeafItem({self.name}, Price={self.unit_price:.2f}, Qty={self.quantity})"
 
 # --------------------------------------------------------------------
@@ -432,10 +523,19 @@ class CompositeItem(CartComponent):
     Represents a composite item (bundle) that contains multiple CartComponents.
     """
     def __init__(self, name: str) -> None:
+        """
+        Initialize a CompositeItem.
+
+        Args:
+            name (str): The name of the composite item.
+        """
         self.name = name
         self._children: List[CartComponent] = []
 
     def add(self, component: CartComponent) -> None:
+        """
+        Add a child component to the composite item.
+        """
         self._children.append(component)
 
     def remove(self, component: CartComponent) -> None:
@@ -456,6 +556,9 @@ class CompositeItem(CartComponent):
 
 
     def get_price(self) -> float:
+        """
+        Calculate the total price of the composite item including tax.
+        """
         total_price = 0
         for child in self._children:
             total_price += child.get_price()
@@ -463,10 +566,16 @@ class CompositeItem(CartComponent):
         return total_price * (1 + TAX_RATE)
 
     def apply_discount(self, percentage: float) -> None:
+        """
+        Apply a discount to all child components of the composite item.
+        """
         for child in self._children:
             child.apply_discount(percentage)
 
     def __str__(self) -> str:
+        """
+        Return a string representation of the composite item.
+        """
         return f"CompositeItem({self.name}, children={len(self._children)})"
 
 # --------------------------------------------------------------------
@@ -477,24 +586,45 @@ class ShoppingCart:
     Implements a shopping cart using the Composite design pattern.
     """
     def __init__(self, name: str = "ShoppingCart") -> None:
+        """
+        Initialize the shopping cart with a root composite item.
+
+        Args:
+            name (str): The name of the shopping cart (default is "ShoppingCart").
+        """
         self.root = CompositeItem(name=name)
 
     def add_item(self, item: CartComponent) -> None:
+        """
+        Add an item to the shopping cart.
+        """
         self.root.add(item)
 
     def remove_item(self, item: CartComponent) -> None:
+        """
+        Remove an item from the shopping cart.
+        """
         self.root.remove(item)
 
     def get_total_price(self) -> float:
+        """
+        Get the total price of all items in the shopping cart.
+        """
         return self.root.get_price()
 
     def apply_discount(self, percentage: float, target: Optional[CartComponent] = None) -> None:
+        """
+        Apply a discount to the shopping cart or a specific target component.
+        """
         if target:
             target.apply_discount(percentage)
         else:
             self.root.apply_discount(percentage)
 
     def view_cart(self) -> str:
+        """
+        Generate a string representation of the shopping cart contents.
+        """
         if not self.root._children:
             return "Shopping cart is empty."
         lines = [f"Cart '{self.root.name}' contents:\n"]
@@ -510,6 +640,14 @@ class Checkout:
     Manages the checkout process: validating cart, processing payment, finalizing orders.
     """
     def __init__(self, user: User, cart: ShoppingCart, inventory: Inventory) -> None:
+        """
+        Initialize the checkout process.
+
+        Args:
+            user (User): The user checking out.
+            cart (ShoppingCart): The shopping cart containing items.
+            inventory (Inventory): The inventory instance.
+        """
         self.user = user
         self.cart = cart
         self.inventory = inventory
@@ -518,12 +656,21 @@ class Checkout:
         self.order_finalized: bool = False
 
     def set_payment_method(self, method: str) -> None:
+        """
+        Set the payment method for checkout.
+        """
         self.payment_method = method
 
     def set_address(self, address: str) -> None:
+        """
+        Set the shipping address for the order.
+        """
         self.address = address
 
     def validate_cart(self) -> bool:
+        """
+        Validate the shopping cart by checking that all items are available in the inventory.
+        """
         leaf_items = self._collect_leaf_items(self.cart.root)
         for item in leaf_items:
             furniture_in_inventory = self._find_furniture_by_name(item.name)
@@ -538,6 +685,9 @@ class Checkout:
         return True
 
     def process_payment(self) -> bool:
+        """
+        Process the payment using the set payment method.
+        """
         if not self.payment_method:
             #logging.error("[DEBUG_CATALOG]","Payment method not set.")
             return False
@@ -545,6 +695,10 @@ class Checkout:
         return True
 
     def finalize_order(self) -> bool:
+        """
+        Finalize the order by validating the cart, processing payment, updating inventory,
+        and recording the order.
+        """
         if self.order_finalized:
             #logging.error("[DEBUG_CATALOG]","Order already finalized.")
             return False
@@ -573,6 +727,9 @@ class Checkout:
         return True
 
     def _collect_leaf_items(self, component: CartComponent) -> List[LeafItem]:
+        """
+        Recursively collect all LeafItems from a composite CartComponent.
+        """
         if isinstance(component, LeafItem):
             return [component]
         if isinstance(component, CompositeItem):
@@ -584,8 +741,9 @@ class Checkout:
 
     def _find_furniture_by_name(self, name: str) -> Optional[Furniture]:
         """
+        Find a furniture item in the inventory by matching its name or id.
         First, attempt to convert the LeafItem name to an integer to match by id.
-        If conversion fails, fall back to matching by the furniture's name.
+        If that fails, fall back to matching by the furniture's name.
         """
         # Try matching by id if the name is numeric.
         try:
@@ -631,6 +789,15 @@ class Order:
     all_orders = []  # Class-level list to store all orders.
 
     def __init__(self, user: User, items: List[LeafItem], total_price: float, status: OrderStatus = OrderStatus.PENDING) -> None:
+        """
+        Initialize an Order instance.
+
+        Args:
+            user (User): The user placing the order.
+            items (List[LeafItem]): The items included in the order.
+            total_price (float): The total price for the order.
+            status (OrderStatus): The initial order status (default is PENDING).
+        """
         self.user = user
         self.items = items
         self.total_price = total_price
@@ -640,9 +807,15 @@ class Order:
         Order.all_orders.append(self)
 
     def set_status(self, new_status: OrderStatus) -> None:
+        """
+        Update the order status.
+        """
         self.status = new_status
 
     def get_status(self) -> OrderStatus:
+        """
+        Retrieve the current status of the order.
+        """
         return self.status
     
     def to_dict(self) -> dict:
@@ -662,6 +835,9 @@ class Order:
         }
 
     def __str__(self) -> str:
+        """
+        Return a string representation of the order."
+        """
         item_descriptions = ", ".join(f"{i.name} x {i.quantity}" for i in self.items)
         return (
             f"Order for {self.user.name} | Status: {self.status.value}\n"
