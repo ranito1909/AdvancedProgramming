@@ -375,6 +375,15 @@ def find_furniture_by_name_endpoint(email: str):
     }
     return jsonify(response), 200
 
+@app.route("/api/orders/<int:order_id>/status", methods=["GET"])
+def get_order_status(order_id):
+    # Find the order by ID
+    order = next((o for o in Order.all_orders if o.order_id == order_id), None)
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+
+    return jsonify({"order_id": order.order_id, "status": order.get_status().value}), 200
+
 # ---------------------------
 # POST Endpoints
 # ---------------------------
@@ -676,15 +685,6 @@ def process_payment_endpoint(email: str):
         return jsonify({"payment_success": True}), 200
     else:
         return jsonify({"payment_success": False, "error": "Payment processing failed"}), 400
-
-@app.route("/api/orders/<int:order_id>/status", methods=["GET"])
-def get_order_status(order_id):
-    # Find the order by ID
-    order = next((o for o in Order.all_orders if o.order_id == order_id), None)
-    if not order:
-        return jsonify({"error": "Order not found"}), 404
-
-    return jsonify({"order_id": order.order_id, "status": order.get_status().value}), 200
 
 # ---------------------------
 # PUT Endpoints
