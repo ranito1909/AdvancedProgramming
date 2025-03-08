@@ -421,3 +421,183 @@ def test_checkout_success(client):
     assert "Order finalized successfully." in data["message"]
     assert "order_summary" in data
 
+def test_login_success(client):
+    # First, register a user
+    email = "login_success@example.com"
+    password = "mypassword"
+    reg_resp = client.post("/api/users", json={
+        "email": email,
+        "name": "Login Success",
+        "password": password,
+        "address": "123 Test Blvd"
+    })
+    assert reg_resp.status_code == 201
+
+    # Then, attempt a successful login
+    login_resp = client.post("/api/login", json={
+        "email": email,
+        "password": password
+    })
+    assert login_resp.status_code == 200
+    data = login_resp.get_json()
+    assert data["email"] == email
+    assert data["name"] == "Login Success"
+
+
+def test_login_failure_wrong_credentials(client):
+    # Attempt to log in with an unregistered user or wrong password
+    login_resp = client.post("/api/login", json={
+        "email": "nonexistent@example.com",
+        "password": "wrongpassword"
+    })
+    assert login_resp.status_code == 401
+    data = login_resp.get_json()
+    assert "error" in data
+
+
+def test_set_password_success(client):
+    email = f"setpassword@example.com"
+    old_password = "oldpassword"
+    new_password = "newpassword"
+    # Register a new user.
+    reg_resp = client.post("/api/users", json={
+        "email": email,
+        "name": "Test SetPassword User",
+        "password": old_password,
+        "address": "123 Test St"
+    })
+    assert reg_resp.status_code == 201
+
+    # Update password using the new endpoint.
+    update_resp = client.put(f"/api/users/{email}/password", json={
+        "new_password": new_password
+    })
+    assert update_resp.status_code == 200
+    data = update_resp.get_json()
+    assert "Password updated successfully" in data["message"]
+
+    # Verify that logging in with the old password fails.
+    login_old = client.post("/api/login", json={
+        "email": email,
+        "password": old_password
+    })
+    assert login_old.status_code == 401
+
+    # Verify that logging in with the new password succeeds.
+    login_new = client.post("/api/login", json={
+        "email": email,
+        "password": new_password
+    })
+    assert login_new.status_code == 200
+
+def test_check_password_success(client):
+    email = f"checkpass@example.com"
+    password = "mypassword"
+    # Register the user.
+    reg_resp = client.post("/api/users", json={
+        "email": email,
+        "name": "Test CheckPassword",
+        "password": password,
+        "address": "123 Test Rd"
+    })
+    assert reg_resp.status_code == 201
+
+    # Check that the correct password returns True.
+    resp = client.post(f"/api/users/{email}/check_password", json={"password": password})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["password_correct"] is True
+
+def test_hash_password(client):
+    password = "testpassword"
+    
+    # First request to hash the password
+    response1 = client.post("/api/hash_password", json={"password": password})
+    assert response1.status_code == 200
+    data1 = response1.get_json()
+    assert "hashed_password" in data1
+
+    # Second request to hash the same password to check consistency
+    response2 = client.post("/api/hash_password", json={"password": password})
+    assert response2.status_code == 200
+    data2 = response2.get_json()
+
+    # Verify both hashes are identical
+    assert data1["hashed_password"] == data2["hashed_password"]
+
+def test_set_order_status_success(client):
+    import uuid
+
+    # Register a user
+    email = f"order_status_{uuid.uuid4()}@example.com"
+    client.post("/api/users", json={
+        "email": email,
+        "name": "Order Status User",
+        "password": "password"
+    })
+
+    # Create a furniture item
+    inv_response = client.post("/api/inventory", json={
+        "id": 100,
+        "type": "Chair",
+        "name": "Status Test Chair",
+        "description": "Chair for order status test",
+        "price": 100.0,
+        "dimensions": [40, 40, 90],
+        "quantity": 10,
+        "cushion_material": "foam"
+    })
+    assert inv_response.status_code == 201
+    furniture_id = inv_response.get_json()["id"]
+
+    # Create an order
+    order_response = client.post("/api/orders", json={
+        "user_email": email,
+        "items": [{"furniture_id": furniture_id, "quantity": 1}]
+    })
+    assert order_response.status_code == 201
+    order_id = order_response.get_json()["order_id"]
+
+    # Update the order status
+    update_resp = client.put(f"/api/orders/{order_id}/status", json={"status": "SHIPPED"})
+    assert update_resp.status_code == 200
+    data = update_resp.get_json()
+    assert "Order status updated successfully" in data["message"]
+
+def test_get_order_status_success(client):
+    # Register a user
+    email = f"getstatus@example.com"
+    client.post("/api/users", json={
+        "email": email,
+        "name": "Get Status User",
+        "password": "password"
+    })
+
+    # Create a furniture item
+    inv_response = client.post("/api/inventory", json={
+        "id": 200,
+        "type": "Chair",
+        "name": "Status Test Chair",
+        "description": "Chair for status test",
+        "price": 100.0,
+        "dimensions": [40, 40, 90],
+        "quantity": 10,
+        "cushion_material": "foam"
+    })
+    assert inv_response.status_code == 201
+    furniture_id = inv_response.get_json()["id"]
+
+    # Create an order
+    order_response = client.post("/api/orders", json={
+        "user_email": email,
+        "items": [{"furniture_id": furniture_id, "quantity": 1}]
+    })
+    assert order_response.status_code == 201
+    order_id = order_response.get_json()["order_id"]
+
+    # Retrieve the order status
+    get_status_resp = client.get(f"/api/orders/{order_id}/status")
+    assert get_status_resp.status_code == 200
+    data = get_status_resp.get_json()
+    assert data["order_id"] == order_id
+    assert data["status"] == "PENDING"  # Default status
