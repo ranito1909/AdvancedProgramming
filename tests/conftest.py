@@ -11,3 +11,6 @@ from app import app
 def client():
     with app.test_client() as client:
         yield client
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "regression: mark test as regression")
