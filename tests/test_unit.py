@@ -746,3 +746,4 @@ def test_find_furniture_by_name_not_found(client):
     assert get_response.status_code == 404
     data = get_response.get_json()
     assert "error" in data
+    
