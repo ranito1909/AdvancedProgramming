@@ -431,6 +431,22 @@ def get_order_status(order_id):
 
     return jsonify({"order_id": order.order_id, "status": order.get_status().value}), 200
 
+@app.route("/api/users/<string:email>/order_history", methods=["GET"])
+def get_user_order_history(email: str):
+    """
+    Retrieve the order history for the specified user.
+
+    Returns:
+        JSON object with the user's email and their order history,
+        or an error if the user is not found.
+    """
+    user = User.get_user(email)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify({"email": user.email, "order_history": user.get_order_history()}), 200
+
+
+
 # ---------------------------
 # POST Endpoints
 # ---------------------------

@@ -987,3 +987,48 @@ def test_get_order_status_success(client):
     data = get_status_resp.get_json()
     assert data["order_id"] == order_id
     assert data["status"] == "PENDING"  # Default status
+
+def test_user_order_history_endpoint(client):
+    """
+    Test creating a user, creating an inventory item and an order (which appends an order
+    to the user's order history), and then verifying the response.
+    """
+    # Create a unique test user via the API.
+    email = f"orderhistory_{uuid.uuid4()}@example.com"
+    response = client.post("/api/users", json={
+        "email": email,
+        "name": "Order History Test User",
+        "password": "testpassword"
+    })
+    assert response.status_code == 201, f"User registration failed: {response.status_code}"
+
+    # Create an inventory item needed to place an order.
+    inv_response = client.post("/api/inventory", json={
+        "type": "Chair",
+        "name": "Order Test Chair",
+        "description": "Chair for order history test",
+        "price": 100.0,
+        "dimensions": [40, 40, 90],
+        "quantity": 5,
+        "cushion_material": "foam"
+    })
+    assert inv_response.status_code == 201, f"Inventory creation failed: {inv_response.status_code}"
+    furniture_data = inv_response.get_json()
+    furniture_id = furniture_data.get("id")
+    assert furniture_id is not None, "Furniture id not returned"
+
+    # Create an order for the user. The order creation process will update the user's order history.
+    order_response = client.post("/api/orders", json={
+        "user_email": email,
+        "items": [{"furniture_id": furniture_id, "quantity": 1}]
+    })
+    assert order_response.status_code == 201, f"Order creation failed: {order_response.status_code}"
+    
+    # Retrieve the order history via the new endpoint.
+    history_response = client.get(f"/api/users/{email}/order_history")
+    assert history_response.status_code == 200, f"Expected 200, got {history_response.status_code}"
+    data = history_response.get_json()
+    assert data["email"] == email
+    # Since an order was placed, the order history should contain at least one entry.
+    assert "order_history" in data, "order_history key missing in response"
+    assert len(data["order_history"]) > 0, "Expected at least one order in history"
