@@ -988,12 +988,6 @@ def test_get_order_status_success(client):
     assert data["order_id"] == order_id
     assert data["status"] == "PENDING"  # Default status
 
-@pytest.fixture
-def client():
-    app.config["TESTING"] = True
-    with app.test_client() as client:
-        yield client
-
 def test_user_order_history_endpoint(client):
     """
     Test creating a user, creating an inventory item and an order (which appends an order
