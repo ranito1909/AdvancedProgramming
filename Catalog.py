@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Tuple, Dict, List, Optional, Type
+from typing import Tuple, Dict, List, Optional, Type, Union
 import hashlib
 from enum import Enum
 from datetime import datetime
@@ -307,13 +307,25 @@ class Inventory:
         name_substring: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
-        furniture_type: Optional[Type] = None,
+        furniture_type: Optional[Union[Type, str]] = None,
     ) -> List[Furniture]:
         """
         Search for furniture matching the given criteria.
         
         :return: A list of matching furniture items.
         """
+        # If furniture_type is a string, convert it to the actual class
+        if isinstance(furniture_type, str):
+            type_mapping = {
+                'chair': Chair,
+                'table': Table,
+                'sofa': Sofa,
+                'lamp': Lamp,
+                'shelf': Shelf
+            }
+            # Convert the string to the actual type
+            furniture_type = type_mapping.get(furniture_type.lower())
+        
         results: List[Furniture] = []
         for item in self.items.keys():
             if name_substring and name_substring.lower() not in item.name.lower():
@@ -322,8 +334,13 @@ class Inventory:
                 continue
             if max_price is not None and item.price > max_price:
                 continue
+            if furniture_type is not None and not isinstance(item, furniture_type):
+                print(f"[DEBUG_Catalog] [DEBUG] search: Skipping {item.name} because it is not of type {furniture_type.__name__}. It is {type(item)}")
+                continue
             results.append(item)
+        print(f"[DEBUG_Catalog] [DEBUG] search: Found {len(results)} matching items. from type {furniture_type}")
         return results
+
 
     def get_quantity(self, furniture: Furniture) -> int:
         """
@@ -436,6 +453,16 @@ class User:
         Generate a SHA-256 hash of the provided raw password.
         """
         return hashlib.sha256(raw_password.encode("utf-8")).hexdigest()
+    
+
+    def get_order_history(self) -> list:
+        """
+        Retrieve the user's order history.
+
+        Returns:
+            list: The list of orders stored in this user's order history.
+        """
+        return self.order_history
 
 # --------------------------------------------------------------------
 # CartComponent (Abstract Base Class)
@@ -675,12 +702,10 @@ class Checkout:
         for item in leaf_items:
             furniture_in_inventory = self._find_furniture_by_name(item.name)
             if not furniture_in_inventory:
-                ##logging.error(f"[DEBUG_CATALOG] Not enough '{item.name}': required {required_qty}, available {available_qty}.")
                 return False
             required_qty = item.quantity
             available_qty = self.inventory.get_quantity(furniture_in_inventory)
             if required_qty > available_qty:
-                ##logging.error("[DEBUG_CATALOG]",f"Not enough '{item.name}': required {required_qty}, available {available_qty}.")
                 return False
         return True
 
@@ -689,9 +714,8 @@ class Checkout:
         Process the payment using the set payment method.
         """
         if not self.payment_method:
-            #logging.error("[DEBUG_CATALOG]","Payment method not set.")
             return False
-        # Mock payment processing
+        
         return True
 
     def finalize_order(self) -> bool:
@@ -700,15 +724,12 @@ class Checkout:
         and recording the order.
         """
         if self.order_finalized:
-            #logging.error("[DEBUG_CATALOG]","Order already finalized.")
             return False
         if not self.validate_cart():
-            #logging.error("[DEBUG_CATALOG]","Cart validation failed during checkout.")
             return False
         if not self.process_payment():
-            #logging.error("[DEBUG_CATALOG]","Payment processing failed.")
             return False
-
+        
         leaf_items = self._collect_leaf_items(self.cart.root)
         for item in leaf_items:
             furniture_in_inventory = self._find_furniture_by_name(item.name)
