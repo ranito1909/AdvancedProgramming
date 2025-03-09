@@ -436,6 +436,15 @@ class User:
         Generate a SHA-256 hash of the provided raw password.
         """
         return hashlib.sha256(raw_password.encode("utf-8")).hexdigest()
+    
+    def get_order_history(self) -> list:
+        """
+        Retrieve the user's order history.
+
+        Returns:
+            list: The list of orders stored in this user's order history.
+        """
+        return self.order_history
 
 # --------------------------------------------------------------------
 # CartComponent (Abstract Base Class)
