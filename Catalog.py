@@ -454,9 +454,13 @@ class User:
         """
         return hashlib.sha256(raw_password.encode("utf-8")).hexdigest()
     
-    def view_order_history(self) -> List[str]:
+
+    def get_order_history(self) -> list:
         """
         Retrieve the user's order history.
+
+        Returns:
+            list: The list of orders stored in this user's order history.
         """
         return self.order_history
 

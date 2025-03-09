@@ -6,95 +6,106 @@
 - Shahar Hay
 
 ## 📖 What’s This Project About?
-
-Welcome to our **Furniture Store API**, built using **Flask** and **Pandas**. 
+Welcome to our **Furniture Store API**, built using **Flask** and **Pandas**.  
 This project lets users:
-
 - Browse and manage a catalog of furniture items 🛋️
-- Create and manage user profiles 👤
+- Register and manage user profiles 👤
 - Place and track orders 📦
-- Handle shopping carts 🛒
+- Manage shopping carts and checkout 🛒
+- Search inventory with advanced filters 🔍
 
-We follow best practices like **type hinting**, **code documentation**, and **automated testing** to keep things clean and reliable!
+We follow best practices like **object-oriented programming**, **design patterns** (Singleton, Composite, Factory), **type hinting**, and **automated testing** to keep the project clean, consistent, and reliable.
 
 ---
 
 ## ⚙️ How to Get Started
 
-### **1️⃣ Install the Necessary Dependencies**
-
+### 1️⃣ Install Dependencies
 Make sure you have Python 3 installed. Then, install the required packages:
 
-```bash
-pip install -r requirements.txt
-```
+    pip install -r requirements.txt
 
-### **2️⃣ Run the API**
-
+### 2️⃣ Run the API
 Start the Flask server by running:
 
-```bash
-python app.py
-```
+    python app.py
 
-### **3️⃣ Access the API**
+The API will be available at http://127.0.0.1:5000/.
 
-Once running, you can interact with the API at `http://127.0.0.1:5000/`.
+### 3️⃣ Running Tests
+To run the test suite and check code coverage, execute:
+
+    pytest --cov=.
 
 ---
 
 ## 📌 API Overview
 
-### **Furniture Routes**
+### 🛋️ Furniture Endpoints
 
-| Method | Endpoint              | Purpose                   |
-| ------ | --------------------- | ------------------------- |
-| GET    | `/api/furniture`      | Get all furniture items   |
-| PUT    | `/api/inventory/<id>` | Update a furniture item   |
-| DELETE | `/api/inventory/<id>` | Remove a furniture item   |
+| Method | Endpoint               | Purpose                                              |
+| ------ | ---------------------- | ---------------------------------------------------- |
+| GET    | /api/furniture         | Retrieve all furniture items with details and stock |
+| POST   | /api/inventory         | Create a new furniture item                          |
+| PUT    | /api/inventory/<id>    | Update an existing furniture item                    |
+| DELETE | /api/inventory/<id>    | Delete a furniture item                              |
 
-### **User Routes**
+### 👤 User Endpoints
 
-| Method | Endpoint                     | Purpose                |
-| ------ | ---------------------------- | ---------------------- |
-| GET    | `/api/users`                 | Get all users          |
-| POST   | `/api/users`                 | Register a new user    |
-| POST   | `/api/users/<email>/profile` | Update a user profile  |
-| DELETE | `/api/users/<email>`         | Delete a user account  |
+| Method | Endpoint                             | Purpose                                          |
+| ------ | ------------------------------------ | ------------------------------------------------ |
+| GET    | /api/users                           | Retrieve all registered users                    |
+| POST   | /api/users                           | Register a new user                              |
+| POST   | /api/users/<email>/profile           | Update a user’s profile (name, address)          |
+| PUT    | /api/users/<email>/password          | Update a user’s password                         |
+| DELETE | /api/users/<email>                   | Delete a user account                            |
+| POST   | /api/login                           | Authenticate a user (login)                      |
+| POST   | /api/users/<email>/check_password    | Verify if a provided password is correct         |
+| POST   | /api/hash_password                   | Generate a SHA-256 hash for a given password     |
 
-### **Order Routes**
+### 📦 Order Endpoints
 
-| Method | Endpoint      | Purpose                 |
-| ------ | ------------ | ----------------------- |
-| GET    | `/api/orders` | View all orders        |
-| POST   | `/api/orders` | Place a new order      |
+| Method | Endpoint                        | Purpose                                 |
+| ------ | --------------------------------| --------------------------------------- |
+| GET    | /api/orders                     | Retrieve all orders                     |
+| POST   | /api/orders                     | Place a new order                       |
+| GET    | /api/orders/<order_id>/status   | Get the status of a specific order      |
+| PUT    | /api/orders/<order_id>/status   | Update the status of an order           |
 
-### **Shopping Cart Routes**
+### 🛒 Shopping Cart Endpoints
 
-| Method | Endpoint                 | Purpose                  |
-| ------ | ------------------------ | ------------------------ |
-| PUT    | `/api/cart/<email>`      | Update a user's cart     |
-| DELETE | `/api/cart/<email>/<id>` | Remove an item from cart |
+| Method | Endpoint                          | Purpose                                                 |
+| ------ | --------------------------------- | ------------------------------------------------------- |
+| PUT    | /api/cart/<email>                 | Create or update a user’s shopping cart                |
+| GET    | /api/cart/<email>/view            | View the contents of a user’s shopping cart            |
+| DELETE | /api/cart/<email>/<id>            | Remove a specific item from a shopping cart            |
+
+### 🔒 Checkout Endpoints
+
+| Method | Endpoint                                          | Purpose                                                                       |
+| ------ | ------------------------------------------------- | ----------------------------------------------------------------------------- |
+| POST   | /api/checkout/<email>                             | Finalize checkout for a user’s cart (requires payment_method and address)     |
+| GET    | /api/checkout/<email>/validate                    | Validate if the items in the cart have sufficient inventory                   |
+| GET    | /api/checkout/<email>/leaf_items                  | Retrieve the individual leaf items from a user’s shopping cart (debug endpoint) |
+| GET    | /api/checkout/<email>/find_furniture?name=...     | Find a furniture item in inventory by its name                                |
+| POST   | /api/checkout/<email>/payment                     | Process payment for a user’s shopping cart                                    |
+
+### 🔍 Inventory Search Endpoint
+
+| Method | Endpoint               | Purpose                                                          |
+| ------ | ---------------------- | ---------------------------------------------------------------- |
+| POST   | /api/inventorysearch   | Search the inventory by name substring, price range, and type   |
 
 ---
 
-## 🛠️ Running Tests
+## 🛠️ Additional Information
 
-To check if everything is working, run:
-
-```bash
-pytest --cov=.
-```
-
-This will test all API routes and ensure business logic is solid. ✅
-
----
-
-## 📝 Extra Info
-
-- Data is stored using **Pandas pickle files** 📂.
-- The inventory and shopping cart are built with **object-oriented programming** 🏗️.
-- User passwords are stored securely using **hashed passwords** 🔒.
+- **Data Persistence:** Data is stored in Pandas pickle files located in the `storage/` folder.
+- **Design Patterns Used:**
+  - **Singleton:** Ensures a single instance of Inventory.
+  - **Composite:** Implements ShoppingCart with LeafItem and CompositeItem.
+  - **Factory:** Uses FURNITURE_MAP to create furniture objects dynamically.
+- **Security:** User passwords are hashed using SHA-256.
+- **Testing:** Extensive unit and regression tests ensure functionality and reliability.
 
 🚀 **Let’s Build Something Great!**
-

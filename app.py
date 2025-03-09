@@ -30,6 +30,18 @@ for filename, default_df in files_with_defaults.items():
         print("[DEBUG_APP]",f"Already exists and checked: {file_path}")
 
 def safe_load_pickle(file_path, default_df):
+    """
+    Safely load a pickle file containing a pandas DataFrame.
+
+    If the file does not exist, is empty, or contains invalid data, it resets the file with default_df.
+    
+    Args:
+        file_path (str): The path to the pickle file.
+        default_df (pd.DataFrame): The default DataFrame to use if loading fails.
+    
+    Returns:
+        pd.DataFrame: The loaded or default DataFrame.
+    """
     try:
         df = pd.read_pickle(file_path)
         if not isinstance(df, pd.DataFrame):  # Ensure it's a DataFrame
@@ -54,6 +66,18 @@ shopping_carts = {}
 
 # Monkey-Patch DataFrame.append (for pandas>=2.0)
 def custom_append(self, other, ignore_index=False):
+    """
+    Custom implementation for DataFrame.append to support dictionaries and lists.
+
+    Converts the input to a DataFrame if necessary, then concatenates it to self.
+    
+    Args:
+        other (dict or list): The data to append.
+        ignore_index (bool): Whether to ignore the index during concatenation.
+    
+    Returns:
+        pd.DataFrame: The concatenated DataFrame.
+    """
     if isinstance(other, dict):
         other = pd.DataFrame([other])
     elif isinstance(other, list):
@@ -407,6 +431,22 @@ def get_order_status(order_id):
 
     return jsonify({"order_id": order.order_id, "status": order.get_status().value}), 200
 
+@app.route("/api/users/<string:email>/order_history", methods=["GET"])
+def get_user_order_history(email: str):
+    """
+    Retrieve the order history for the specified user.
+
+    Returns:
+        JSON object with the user's email and their order history,
+        or an error if the user is not found.
+    """
+    user = User.get_user(email)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify({"email": user.email, "order_history": user.get_order_history()}), 200
+
+
+
 # ---------------------------
 # POST Endpoints
 # ---------------------------
@@ -743,10 +783,11 @@ def process_payment_endpoint(email: str):
 @app.route("/api/cart/<email>", methods=["PUT"])
 def update_cart(email):
     """
-    Update or create the shopping cart for a user.
-    
-    Expects a JSON payload with a list of items. Clears any existing items if the cart exists,
-    then adds the provided items and returns the updated cart details.
+    Update or create the shopping cart for the specified user.
+
+    Expects a JSON payload with a list of items. If a cart already exists, it clears previous items;
+    otherwise, it creates a new ShoppingCart. Each item is processed (including discount application)
+    and added to the cart. Returns the updated cart details including user_email, list of items, and total price.
     """
     data = request.get_json() or {}
     app.logger.debug("[DEBUG] update_cart: Received data for email %s: %s", email, data)
