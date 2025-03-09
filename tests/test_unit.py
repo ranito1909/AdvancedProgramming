@@ -989,8 +989,7 @@ def test_get_order_status_success(client):
     data = get_status_resp.get_json()
     assert data["order_id"] == order_id
     assert data["status"] == "PENDING"  # Default status
-<<<<<<< HEAD
-=======
+
 
 def test_user_order_history_endpoint(client):
     """
@@ -1036,4 +1035,4 @@ def test_user_order_history_endpoint(client):
     # Since an order was placed, the order history should contain at least one entry.
     assert "order_history" in data, "order_history key missing in response"
     assert len(data["order_history"]) > 0, "Expected at least one order in history"
->>>>>>> 426f5880b9a9c88c466b4899a232bd647bcdd2f4
+    assert len(data["order_history"]) > 0, "Expected at least one order in history"
