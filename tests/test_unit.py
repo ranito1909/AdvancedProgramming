@@ -1,4 +1,6 @@
 import uuid
+import os
+import pandas as pd
 import pytest
 from app import app
 
@@ -988,6 +990,7 @@ def test_get_order_status_success(client):
     assert data["order_id"] == order_id
     assert data["status"] == "PENDING"  # Default status
 
+
 def test_user_order_history_endpoint(client):
     """
     Test creating a user, creating an inventory item and an order (which appends an order
@@ -1031,4 +1034,5 @@ def test_user_order_history_endpoint(client):
     assert data["email"] == email
     # Since an order was placed, the order history should contain at least one entry.
     assert "order_history" in data, "order_history key missing in response"
+    assert len(data["order_history"]) > 0, "Expected at least one order in history"
     assert len(data["order_history"]) > 0, "Expected at least one order in history"
