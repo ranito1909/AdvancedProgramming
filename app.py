@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 import os
-import logging
+from typing import Union, Dict, List
 import pandas as pd
 from Catalog import Inventory, Chair, Table, Sofa, Lamp, Shelf , User , ShoppingCart, LeafItem , Checkout , Order , OrderStatus
 import pickle
@@ -26,7 +26,7 @@ for filename, default_df in files_with_defaults.items():
         with open(file_path, "wb") as f:
             pickle.dump(default_df, f)  # Save default DataFrame
 
-def safe_load_pickle(file_path, default_df):
+def safe_load_pickle(file_path: str, default_df: pd.DataFrame) -> pd.DataFrame:
     """
     Safely load a pickle file containing a pandas DataFrame.
 
@@ -57,10 +57,10 @@ furniture_df = safe_load_pickle(os.path.join(storage_dir, "inventory.pkl"), file
 
 
 # Initialize the Inventory singleton
-inventory = Inventory.get_instance()
-shopping_carts = {}
+inventory: Inventory = Inventory.get_instance()
+shopping_carts: Dict[str, ShoppingCart] = {}
 
-def custom_append(self, other, ignore_index=False):
+def custom_append(self, other: Union[Dict, List], ignore_index: bool = False) -> pd.DataFrame:
     """
     Custom implementation for DataFrame.append to support dictionaries and lists.
 
@@ -85,7 +85,7 @@ pd.DataFrame.append = custom_append
 app = Flask(__name__)
 
 
-def save_orders(orders_df, filename="orders.pkl", storage_dir="storage"):
+def save_orders(orders_df: pd.DataFrame, filename: str = "orders.pkl", storage_dir: str = "storage") -> None:
     """
     Persist the orders DataFrame to a pickle file.
     
@@ -105,7 +105,7 @@ def save_orders(orders_df, filename="orders.pkl", storage_dir="storage"):
     filepath = os.path.join(storage_dir, filename)
     orders_df.to_pickle(filepath)
 
-def save_users(users_dict, filename="users.pkl", storage_dir="storage"):
+def save_users(users_dict: Dict[str, User], filename: str = "users.pkl", storage_dir: str = "storage") -> None:
     """
     Save the current users stored in the User._users dictionary to a pickle file.
     
@@ -132,7 +132,7 @@ def save_users(users_dict, filename="users.pkl", storage_dir="storage"):
     filepath = os.path.join(storage_dir, filename)
     users_df.to_pickle(filepath)
 
-def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
+def save_cart(shopping_carts: Dict[str, ShoppingCart], filename: str = "cart.pkl", storage_dir: str = "storage") ->None:
     """
     Persist the current shopping carts to a pickle file.
     
@@ -170,7 +170,7 @@ def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
     filepath = os.path.join(storage_dir, filename)
     carts_df.to_pickle(filepath)
 
-def save_inventory(inventory_instance, filename="inventory.pkl", storage_dir="storage"):
+def save_inventory(inventory_instance: inventory, filename: str = "inventory.pkl", storage_dir: str = "storage") -> pd.DataFrame:
     """
     Persist the current inventory from the Inventory singleton to a pickle file.
 
@@ -273,7 +273,7 @@ def get_furniture_item_by_id(furniture_id: int):
     return next((item for item in inventory.items.keys() if getattr(item, "id", None) == furniture_id), None)
 
 @app.route("/api/inventory/<int:furniture_id>/quantity", methods=["GET"])
-def get_quantity_for_item(furniture_id):
+def get_quantity_for_item(furniture_id: int):
     """
     Retrieve the available quantity for a specific furniture item by its ID.
     
@@ -398,7 +398,7 @@ def find_furniture_by_name_endpoint(email: str):
     return jsonify(response), 200
 
 @app.route("/api/orders/<int:order_id>/status", methods=["GET"])
-def get_order_status(order_id):
+def get_order_status(order_id: int):
     """
     Retrieve the status of an order by its ID.
     
@@ -524,7 +524,7 @@ def login():
     }), 200
 
 @app.route("/api/users/<email>/check_password", methods=["POST"])
-def check_password(email):
+def check_password(email: str):
     """
     Verify whether the provided password matches the stored password for a user.
     
@@ -624,7 +624,7 @@ def create_order():
     return jsonify(new_order.to_dict()), 201
 
 @app.route("/api/users/<email>/profile", methods=["POST"])
-def update_profile(email):
+def update_profile(email: str):
     """
     Update an existing user's profile.
     """
@@ -643,7 +643,7 @@ def update_profile(email):
     }), 200
 
 @app.route("/api/checkout/<email>", methods=["POST"])
-def checkout(email):
+def checkout(email: str):
     """
     Process the checkout for a user's shopping cart.
     
@@ -750,7 +750,7 @@ def process_payment_endpoint(email: str):
 # PUT Endpoints
 # ---------------------------
 @app.route("/api/cart/<email>", methods=["PUT"])
-def update_cart(email):
+def update_cart(email: str):
     """
     Update or create the shopping cart for the specified user.
 
@@ -813,7 +813,7 @@ def update_cart(email):
 
 
 @app.route("/api/inventory/<int:furniture_id>", methods=["PUT"])
-def update_inventory(furniture_id):
+def update_inventory(furniture_id: int):
     """
     Update an existing furniture item.
     Locate the item by its unique id (stored as an attribute).
@@ -850,7 +850,7 @@ def update_inventory(furniture_id):
     }), 200
 
 @app.route("/api/users/<email>/password", methods=["PUT"])
-def update_password(email):
+def update_password(email: str):
     """
     Update the password for a user.
     
@@ -867,7 +867,7 @@ def update_password(email):
     return jsonify({"message": "Password updated successfully"}), 200
 
 @app.route("/api/orders/<int:order_id>/status", methods=["PUT"])
-def update_order_status(order_id):
+def update_order_status(order_id: int):
     """
     Update the status of an order.
     
@@ -968,7 +968,7 @@ def create_furniture():
 # DELETE Endpoints for Inventory, Cart, and Users
 # ---------------------------
 @app.route("/api/inventory/<int:furniture_id>", methods=["DELETE"])
-def delete_inventory(furniture_id):
+def delete_inventory(furniture_id: int):
     """
     Delete a furniture item from the inventory.
     
@@ -988,7 +988,7 @@ def delete_inventory(furniture_id):
     return jsonify({"message": "Furniture item deleted"}), 200
 
 @app.route("/api/cart/<email>/<item_id>", methods=["DELETE"])
-def delete_cart_item(email, item_id):
+def delete_cart_item(email: str, item_id: int):
     """
     Remove an item from a user's shopping cart.
 
@@ -1014,7 +1014,7 @@ def delete_cart_item(email, item_id):
     return jsonify({"message": "Item removed from cart", "total_price": cart.get_total_price()}), 200
 
 @app.route("/api/users/<email>", methods=["DELETE"])
-def delete_user(email):
+def delete_user(email: str):
     """
     Delete a user via the User.delete_user class method.
     """
