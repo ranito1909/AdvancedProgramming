@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from typing import List, Dict, Union
 import os
 import logging
 import pandas as pd
@@ -29,7 +30,7 @@ for filename, default_df in files_with_defaults.items():
     else:
         print("[DEBUG_APP]",f"Already exists and checked: {file_path}")
 
-def safe_load_pickle(file_path, default_df):
+def safe_load_pickle(file_path: str, default_df: pd.DataFrame) -> pd.DataFrame:
     """
     Safely load a pickle file containing a pandas DataFrame.
 
@@ -61,8 +62,8 @@ furniture_df = safe_load_pickle(os.path.join(storage_dir, "inventory.pkl"), file
 
 
 # Initialize the Inventory singleton
-inventory = Inventory.get_instance()
-shopping_carts = {}
+inventory: Inventory = Inventory.get_instance()
+shopping_carts: Dict[str, ShoppingCart] = {}
 
 # Monkey-Patch DataFrame.append (for pandas>=2.0)
 def custom_append(self, other, ignore_index=False):
@@ -90,9 +91,61 @@ pd.DataFrame.append = custom_append
 app = Flask(__name__)
 app.logger.setLevel(logging.DEBUG)
 
+# "Load" functions
+def load_users():
+    """
+    Load user data from the 'users.pkl' file into the User._users dictionary.
+
+    This function ensures that any persisted user data is loaded into memory when the program starts.
+    """
+    file_path = os.path.join(storage_dir, "users.pkl")
+    try:
+        users_df = pd.read_pickle(file_path)
+        for _, row in users_df.iterrows():
+            user = User(
+                name=row["name"],
+                email=row["email"],
+                password_hash=row["password_hash"],
+                address=row["address"],
+                order_history=row["order_history"]
+            )
+            User._users[row["email"]] = user
+        print("[DEBUG_APP] Users loaded successfully.")
+    except Exception as e:
+        print(f"[DEBUG_APP] Error loading users: {e}")
+
+def load_shopping_carts():
+    """
+    Load shopping cart data from the 'cart.pkl' file into the shopping_carts dictionary.
+
+    This function recreates ShoppingCart objects for each user based on the persisted cart data.
+    """
+    file_path = os.path.join(storage_dir, "cart.pkl")
+    try:
+        carts_df = pd.read_pickle(file_path)
+        for _, row in carts_df.iterrows():
+            email = row["user_email"]
+            cart = ShoppingCart(name=email)
+            # Reconstruct items in the cart.
+            for item in row["items"]:
+                leaf_item = LeafItem(
+                    name=str(item["furniture_id"]),
+                    unit_price=float(item["unit_price"]),
+                    quantity=int(item["quantity"])
+                )
+                cart.add_item(leaf_item)
+            shopping_carts[email] = cart
+        print("[DEBUG_APP] Shopping carts loaded successfully.")
+    except Exception as e:
+        print(f"[DEBUG_APP] Error loading shopping carts: {e}")
+
+# Load persisted data on startup
+load_users()
+load_shopping_carts()
+
 
 # "Save" functions (simulate persistence)
-def save_orders(orders_df, filename="orders.pkl", storage_dir="storage"):
+def save_orders(orders_df: pd.DataFrame, filename: str = "orders.pkl", storage_dir: str = "storage") -> None:
     """
     Persist the orders DataFrame to a pickle file.
     
@@ -113,7 +166,7 @@ def save_orders(orders_df, filename="orders.pkl", storage_dir="storage"):
     orders_df.to_pickle(filepath)
     print("[DEBUG_APP]",f"Orders saved to {filepath}")
 
-def save_users(users_dict, filename="users.pkl", storage_dir="storage"):
+def save_users(users_dict: Dict[str, User], filename: str = "users.pkl", storage_dir: str = "storage") -> None:
     """
     Save the current users stored in the User._users dictionary to a pickle file.
     
@@ -141,7 +194,7 @@ def save_users(users_dict, filename="users.pkl", storage_dir="storage"):
     users_df.to_pickle(filepath)
     print("[DEBUG_APP]",f"Users saved to {filepath}")
 
-def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
+def save_cart(shopping_carts: Dict[str, ShoppingCart], filename: str = "cart.pkl", storage_dir: str = "storage") -> None:
     """
     Persist the current shopping carts to a pickle file.
     
@@ -180,7 +233,7 @@ def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
     carts_df.to_pickle(filepath)
     print("[DEBUG_APP]",f"Cart data saved to {filepath}")
 
-def save_inventory(inventory_instance, filename="inventory.pkl", storage_dir="storage"):
+def save_inventory(inventory_instance: Inventory, filename: str = "inventory.pkl", storage_dir: str = "storage") -> pd.DataFrame:
     """
     Persist the current inventory from the Inventory singleton to a pickle file.
 
@@ -285,7 +338,7 @@ def get_furniture_item_by_id(furniture_id: int):
     return next((item for item in inventory.items.keys() if getattr(item, "id", None) == furniture_id), None)
 
 @app.route("/api/inventory/<int:furniture_id>/quantity", methods=["GET"])
-def get_quantity_for_item(furniture_id):
+def get_quantity_for_item(furniture_id: int):
     """
     Retrieve the available quantity for a specific furniture item by its ID.
     
@@ -414,7 +467,7 @@ def find_furniture_by_name_endpoint(email: str):
     return jsonify(response), 200
 
 @app.route("/api/orders/<int:order_id>/status", methods=["GET"])
-def get_order_status(order_id):
+def get_order_status(order_id: int):
     """
     Retrieve the status of an order by its ID.
     
@@ -444,8 +497,6 @@ def get_user_order_history(email: str):
     if not user:
         return jsonify({"error": "User not found"}), 404
     return jsonify({"email": user.email, "order_history": user.get_order_history()}), 200
-
-
 
 # ---------------------------
 # POST Endpoints
@@ -542,7 +593,7 @@ def login():
     }), 200
 
 @app.route("/api/users/<email>/check_password", methods=["POST"])
-def check_password(email):
+def check_password(email: str):
     """
     Verify whether the provided password matches the stored password for a user.
     
@@ -645,7 +696,7 @@ def create_order():
     return jsonify(new_order.to_dict()), 201
 
 @app.route("/api/users/<email>/profile", methods=["POST"])
-def update_profile(email):
+def update_profile(email: str):
     """
     Update an existing user's profile.
     """
@@ -664,7 +715,7 @@ def update_profile(email):
     }), 200
 
 @app.route("/api/checkout/<email>", methods=["POST"])
-def checkout(email):
+def checkout(email: str):
     """
     Process the checkout for a user's shopping cart.
     
@@ -781,13 +832,12 @@ def process_payment_endpoint(email: str):
 # PUT Endpoints
 # ---------------------------
 @app.route("/api/cart/<email>", methods=["PUT"])
-def update_cart(email):
+def update_cart(email: str):
     """
-    Update or create the shopping cart for the specified user.
-
-    Expects a JSON payload with a list of items. If a cart already exists, it clears previous items;
-    otherwise, it creates a new ShoppingCart. Each item is processed (including discount application)
-    and added to the cart. Returns the updated cart details including user_email, list of items, and total price.
+    Update or create the shopping cart for a user.
+    
+    Expects a JSON payload with a list of items. Clears any existing items if the cart exists,
+    then adds the provided items and returns the updated cart details.
     """
     data = request.get_json() or {}
     app.logger.debug("[DEBUG] update_cart: Received data for email %s: %s", email, data)
@@ -851,7 +901,7 @@ def update_cart(email):
 
 
 @app.route("/api/inventory/<int:furniture_id>", methods=["PUT"])
-def update_inventory(furniture_id):
+def update_inventory(furniture_id: int):
     """
     Update an existing furniture item.
     Locate the item by its unique id (stored as an attribute).
@@ -888,7 +938,7 @@ def update_inventory(furniture_id):
     }), 200
 
 @app.route("/api/users/<email>/password", methods=["PUT"])
-def update_password(email):
+def update_password(email: str):
     """
     Update the password for a user.
     
@@ -905,7 +955,7 @@ def update_password(email):
     return jsonify({"message": "Password updated successfully"}), 200
 
 @app.route("/api/orders/<int:order_id>/status", methods=["PUT"])
-def update_order_status(order_id):
+def update_order_status(order_id: int):
     """
     Update the status of an order.
     
@@ -946,7 +996,7 @@ def create_furniture():
     """
     Create a new furniture item.
     Expected JSON:
-    {
+    { "id" : unique(id),
       "class": "Chair" or "Table" or "Sofa" or "Lamp" or "Shelf",
       "name": "...",
       "description": "...",
@@ -956,7 +1006,7 @@ def create_furniture():
     }
     """
     data = request.get_json() or {}
-    id = None  # Placeholder for the ID, which is generated by the Inventory.
+    id = data.get("id",None)
     ftype = data.get("type")
     name = data.get("name", "")
     description = data.get("description", "")
@@ -1006,7 +1056,7 @@ def create_furniture():
 # DELETE Endpoints for Inventory, Cart, and Users
 # ---------------------------
 @app.route("/api/inventory/<int:furniture_id>", methods=["DELETE"])
-def delete_inventory(furniture_id):
+def delete_inventory(furniture_id: int):
     """
     Delete a furniture item from the inventory.
     
@@ -1026,7 +1076,7 @@ def delete_inventory(furniture_id):
     return jsonify({"message": "Furniture item deleted"}), 200
 
 @app.route("/api/cart/<email>/<item_id>", methods=["DELETE"])
-def delete_cart_item(email, item_id):
+def delete_cart_item(email: str, item_id: int):
     """
     Remove an item from a user's shopping cart.
 
@@ -1052,7 +1102,7 @@ def delete_cart_item(email, item_id):
     return jsonify({"message": "Item removed from cart", "total_price": cart.get_total_price()}), 200
 
 @app.route("/api/users/<email>", methods=["DELETE"])
-def delete_user(email):
+def delete_user(email: str):
     """
     Delete a user via the User.delete_user class method.
     """
@@ -1182,7 +1232,7 @@ if __name__ == "__main__":  # pragma: no cover
                 "name_substring": "Chair",
                 "min_price": 50.0,
                 "max_price": 100.0,
-                "furniture_type": "chair"
+                "furniture_type": "Chair"
             }
         )
         print("[DEBUG_APP]","Search Results:", search_response.get_json())
