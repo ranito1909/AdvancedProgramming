@@ -25,9 +25,6 @@ for filename, default_df in files_with_defaults.items():
     if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
         with open(file_path, "wb") as f:
             pickle.dump(default_df, f)  # Save default DataFrame
-        print("[DEBUG_APP]",f"Created and initialized: {file_path}")
-    else:
-        print("[DEBUG_APP]",f"Already exists and checked: {file_path}")
 
 def safe_load_pickle(file_path, default_df):
     """
@@ -48,7 +45,6 @@ def safe_load_pickle(file_path, default_df):
             raise ValueError("Invalid pickle content, resetting file.")
         return df
     except (EOFError, FileNotFoundError, ValueError, pickle.UnpicklingError):
-        print("[DEBUG_APP]",f"[WARNING] {file_path} is empty or corrupted. Resetting...")
         with open(file_path, "wb") as f:
             pickle.dump(default_df, f)
         return default_df
@@ -64,7 +60,6 @@ furniture_df = safe_load_pickle(os.path.join(storage_dir, "inventory.pkl"), file
 inventory = Inventory.get_instance()
 shopping_carts = {}
 
-# Monkey-Patch DataFrame.append (for pandas>=2.0)
 def custom_append(self, other, ignore_index=False):
     """
     Custom implementation for DataFrame.append to support dictionaries and lists.
@@ -88,10 +83,8 @@ pd.DataFrame.append = custom_append
 
 
 app = Flask(__name__)
-app.logger.setLevel(logging.DEBUG)
 
 
-# "Save" functions (simulate persistence)
 def save_orders(orders_df, filename="orders.pkl", storage_dir="storage"):
     """
     Persist the orders DataFrame to a pickle file.
@@ -111,7 +104,6 @@ def save_orders(orders_df, filename="orders.pkl", storage_dir="storage"):
         os.makedirs(storage_dir)
     filepath = os.path.join(storage_dir, filename)
     orders_df.to_pickle(filepath)
-    print("[DEBUG_APP]",f"Orders saved to {filepath}")
 
 def save_users(users_dict, filename="users.pkl", storage_dir="storage"):
     """
@@ -139,7 +131,6 @@ def save_users(users_dict, filename="users.pkl", storage_dir="storage"):
     users_df = pd.DataFrame(users_list)
     filepath = os.path.join(storage_dir, filename)
     users_df.to_pickle(filepath)
-    print("[DEBUG_APP]",f"Users saved to {filepath}")
 
 def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
     """
@@ -178,7 +169,6 @@ def save_cart(shopping_carts, filename="cart.pkl", storage_dir="storage"):
     carts_df = pd.DataFrame(carts_list)
     filepath = os.path.join(storage_dir, filename)
     carts_df.to_pickle(filepath)
-    print("[DEBUG_APP]",f"Cart data saved to {filepath}")
 
 def save_inventory(inventory_instance, filename="inventory.pkl", storage_dir="storage"):
     """
@@ -203,7 +193,6 @@ def save_inventory(inventory_instance, filename="inventory.pkl", storage_dir="st
     data = []
     # Loop through each furniture item and its quantity to build a list of dictionaries.
     for furniture, quantity in inventory_instance.items.items():
-        print("[DEBUG_APP]",f"[DEBUG] Saving furniture: {furniture} with quantity {quantity}")
         data.append({
             "id": getattr(furniture, "id", None),
             "name": getattr(furniture, "name", None),
@@ -217,7 +206,6 @@ def save_inventory(inventory_instance, filename="inventory.pkl", storage_dir="st
     inventory_df = pd.DataFrame(data)
     filepath = os.path.join(storage_dir, filename)
     inventory_df.to_pickle(filepath)
-    print("[DEBUG_APP]",f"Inventory saved to {filepath}")
     
     return inventory_df
 
@@ -295,7 +283,6 @@ def get_quantity_for_item(furniture_id):
     if not furniture_item:
         return jsonify({"error": "Furniture item not found"}), 404
 
-    # Use the get_quantity() method of the Inventory instance without rewriting its functionality.
     quantity = inventory.get_quantity(furniture_item)
     return jsonify({"id": furniture_id, "quantity": quantity}), 200
 
@@ -360,7 +347,6 @@ def get_leaf_items(email: str):
     # Call the private method _collect_leaf_items on the cart's root.
     leaf_items = checkout_obj._collect_leaf_items(cart.root)
     
-    # Build a JSON-friendly list of items.
     items_list = []
     for item in leaf_items:
         items_list.append({
@@ -395,8 +381,6 @@ def find_furniture_by_name_endpoint(email: str):
     user = User._users[email]
     cart = shopping_carts[email]
     checkout_obj = Checkout(user, cart, inventory)
-    
-    # Use the internal method to find the furniture by name.
     furniture_item = checkout_obj._find_furniture_by_name(furniture_name)
     if not furniture_item:
         return jsonify({"error": "Furniture not found"}), 404
@@ -467,8 +451,6 @@ def inventory_search():
     max_price = data.get("max_price")
     furniture_type_str = data.get("furniture_type")
 
-    # Optionally log incoming data for debugging
-    logging.debug(f"[DEBUG_APP] Inventory search parameters: {data}")
 
 
     # Run the inventory search
@@ -586,7 +568,6 @@ def create_order():
     """
     data = request.get_json() or {}
     user_email = data.get("user_email")
-    print("[DEBUG_APP]",f"[DEBUG] create_order: received user_email: {user_email}")
     
     # Retrieve the user instance.
     user = User.get_user(user_email)
@@ -610,13 +591,11 @@ def create_order():
         if not isinstance(inventory.items, dict):
             return jsonify({"error": "Inventory is not properly initialized"}), 500
         for furniture in inventory.items.keys():
-            print("[DEBUG_APP]",f"[DEBUG] Checking furniture id: {getattr(furniture, 'id', None)} against order id: {furniture_id}")
             if getattr(furniture, "id", None) == furniture_id:
                 if not furniture.check_availability(): # Ensure no zero-quantity items
                     return jsonify({"error": f"Furniture '{furniture.name}' is not available"}), 400
                 if inventory.items[furniture] < order_quantity:
                     return jsonify({"error": f"Not enough quantity for furniture with id {furniture_id}"}), 400
-                print("[DEBUG_APP]",f"[DEBUG] Found furniture id {furniture_id} with quantity {inventory.items[furniture]}")
                 found = furniture
                 break
         if not found:
@@ -672,19 +651,15 @@ def checkout(email):
     finalizes the order, updates the user's order history, and returns an order summary.
     """
     data = request.get_json() or {}
-    app.logger.debug("[DEBUG] checkout: Received data for email %s: %s", email, data)
 
     payment_method = data.get("payment_method")
     address = data.get("address")
     if not payment_method or not address:
-        app.logger.debug("[DEBUG] checkout: Missing payment_method or address in data: %s", data)
         return jsonify({"error": "Both payment_method and address are required."}), 400
 
     if email not in shopping_carts:
-        app.logger.debug("[DEBUG] checkout: No shopping cart found for email %s", email)
         return jsonify({"error": "Shopping cart not found for user."}), 404
     if email not in User._users:
-        app.logger.debug("[DEBUG] checkout: No user found for email %s", email)
         return jsonify({"error": "User not found."}), 404
 
     cart = shopping_carts[email]
@@ -693,15 +668,12 @@ def checkout(email):
     checkout_obj = Checkout(user, cart, inventory)
     checkout_obj.set_payment_method(payment_method)
     checkout_obj.set_address(address)
-    app.logger.debug("[DEBUG] checkout: Checkout initiated for user %s", email)
 
     if not checkout_obj.finalize_order():
-        app.logger.debug("[DEBUG] checkout: Order finalization failed for user %s", email)
         return jsonify({"error": "Checkout process failed. Check logs for details."}), 400
 
     # Assuming the user object stores order summaries in an 'orders' list.
     order_summary = checkout_obj.order_summary or "Order summary not available"
-    app.logger.debug("[DEBUG] checkout: Order finalized for user %s with summary: %s", email, order_summary)
     return jsonify({"message": "Order finalized successfully.", "order_summary": order_summary}), 200
 
 @app.route("/api/cart/<string:email>/remove", methods=["POST"])
@@ -734,7 +706,6 @@ def remove_cart_item(email: str):
     cart = shopping_carts[email]
     cart.remove_item(leaf_item)
 
-    app.logger.debug("[DEBUG] remove_item from cart: Removed item %s from cart for user %s", item_id, email)
     return jsonify({
         "message": "Item removed from cart",
         "total_price": cart.get_total_price()
@@ -769,8 +740,6 @@ def process_payment_endpoint(email: str):
     cart = shopping_carts[email]
     checkout_obj = Checkout(user, cart, inventory)
     checkout_obj.set_payment_method(payment_method)
-    
-    # Call process_payment() to simulate the payment processing.
     payment_result = checkout_obj.process_payment()
     if payment_result:
         return jsonify({"payment_success": True}), 200
@@ -790,21 +759,16 @@ def update_cart(email):
     and added to the cart. Returns the updated cart details including user_email, list of items, and total price.
     """
     data = request.get_json() or {}
-    app.logger.debug("[DEBUG] update_cart: Received data for email %s: %s", email, data)
     
     items = data.get("items", [])
     if not isinstance(items, list):
         return jsonify({"error": "items must be a list"}), 400
 
-    # If a cart exists for the user, clear its items; otherwise, create a new cart.
     if email in shopping_carts:
         cart = shopping_carts[email]
-        cart.root._children.clear()  # Clear previous items.
-        app.logger.debug("[DEBUG] update_cart: Existing cart found for email %s. Cleared previous items.", email)
     else:
         cart = ShoppingCart(name=email)
         shopping_carts[email] = cart
-        app.logger.debug("[DEBUG] update_cart: New cart created for email %s.", email)
 
     # Process each item in the request.
     for item in items:
@@ -836,7 +800,6 @@ def update_cart(email):
             return jsonify({"error": str(e)}), 400
         
         cart.add_item(leaf_item)
-        #app.logger.debug("[DEBUG] update_cart: Added item: %s", leaf_item)
 
     total_price = cart.get_total_price()
     response_items = []
@@ -845,7 +808,6 @@ def update_cart(email):
             "furniture_id": int(child.name),
             "quantity": child.quantity
         })
-    #app.logger.debug("[DEBUG] update_cart: Cart updated for email %s with total price: %.2f", email, total_price)
 
     return jsonify({"user_email": email, "items": response_items, "total_price": total_price}), 200
 
@@ -1060,210 +1022,6 @@ def delete_user(email):
         return jsonify({"error": "User not found"}), 404
     return jsonify({"message": "User deleted"}), 200
 
-# ---------------------------
-# Run the Flask App (with some regression test calls)
-# ---------------------------
+
 if __name__ == "__main__":  # pragma: no cover
-    print("[DEBUG_APP]","Starting Flask app...")
-
-    with app.test_client() as client:
-        # --- User Registration for Regression Testing ---
-        reg_user_response = client.post(
-            "/api/users",
-            json={
-                "email": "regression@example.com",
-                "name": "Regression Test1",
-                "password": "regress123",
-            }
-        )
-        print("[DEBUG_APP]","User Registration (regression):", reg_user_response.get_json())
-
-        # --- Place an Order with Items Not in Inventory ---
-        res_furniture_not_in_inventory = client.post(
-            "/api/orders",
-            json={
-                "user_email": "regression@example.com",
-                "items": [{"furniture_id": 1, "quantity": 1}, {"furniture_id": 2, "quantity": 70}]
-            }
-        )
-        print("[DEBUG_APP]","Order (furniture not in inventory):", res_furniture_not_in_inventory.get_json())
-
-        # --- Second User Registration (Regression) ---
-        sec_user_response = client.post(
-            "/api/users",
-            json={
-                "email": "regression@example2.com",
-                "name": "Regression Test1",
-                "password": "regress123",
-            }
-        )
-        print("[DEBUG_APP]","Second User Registration (regression):", sec_user_response.get_json())
-
-        # --- Add Inventory: Regression Chair ---
-        inv_response = client.post(
-            "/api/inventory",
-            json={
-                "id": 1,    
-                "type": "Chair",
-                "name": "Regression Chair",
-                "description": "A chair for regression test",
-                "price": 100.0,
-                "dimensions": [40, 40, 90],
-                "quantity": 10,
-                "cushion_material": "foam"
-            }
-        )
-        print("[DEBUG_APP]","Inventory (Regression Chair):", inv_response.get_json())
-
-        # --- Place Order for an Item That Is in Inventory ---
-        res_furniture_in_inventory = client.post(
-            "/api/orders",
-            json={
-                "user_email": "regression@example.com",
-                "items": [{"furniture_id": 1, "quantity": 1}]
-            }
-        )
-        print("[DEBUG_APP]","Order (furniture in inventory):", res_furniture_in_inventory.get_json())
-
-        # --- Add Inventory: Test Chair ---
-        test_chair_response = client.post(
-            "/api/inventory",
-            json={
-                "type": "Chair",
-                "name": "Test Chair",
-                "description": "A test chair for order creation",
-                "price": 75.0,
-                "dimensions": [30, 30, 30],
-                "quantity": 5,
-                "cushion_material": "foam"
-            }
-        )
-        print("[DEBUG_APP]","Inventory (Test Chair):", test_chair_response.get_json())
-        assert test_chair_response.status_code == 201, f"Furniture creation failed: {test_chair_response.status_code}"
-        furniture_data = test_chair_response.get_json()
-        furniture_id = furniture_data.get("id")
-
-        # --- Register Order User ---
-        order_user_response = client.post(
-            "/api/users",
-            json={
-                "email": "orderuser@example.com",
-                "name": "Order User",
-                "password": "orderpassword",
-            }
-        )
-        print("[DEBUG_APP]","Order User Registration:", order_user_response.get_json())
-
-        # --- Create Order for Order User Using the Actual Furniture ID ---
-        order_response = client.post(
-            "/api/orders",
-            json={
-                "user_email": "orderuser@example.com",
-                "items": [{"furniture_id": furniture_id, "quantity": 2}]
-            }
-        )
-        print("[DEBUG_APP]","Order Creation (order user):", order_response.get_json())
-
-        # --- Register User for Cart Update and Checkout ---
-        cart_update_user_response = client.post(
-            "/api/users",
-            json={
-                "email": "cartupdate@example.com",
-                "name": "Cart Update User",
-                "password": "cartpassword"
-            }
-        )
-        print("[DEBUG_APP]","Cart Update User Registration:", cart_update_user_response.get_json())
-
-        # --- Search Inventory (for Chairs) ---
-        search_response = client.post(
-            "/api/inventorysearch",
-            json={
-                "name_substring": "Chair",
-                "min_price": 50.0,
-                "max_price": 100.0,
-                "furniture_type": "chair"
-            }
-        )
-        print("[DEBUG_APP]","Search Results:", search_response.get_json())
-
-        # --- Add Inventory Item for Cart Update User Checkout ---
-        inventory_cart_response = client.post(
-            "/api/inventory",
-            json={
-                "type": "Sofa",
-                "name": "CartUpdate Sofa",
-                "description": "A sofa for cart update checkout test",
-                "price": 300.0,
-                "dimensions": [200, 90, 100],
-                "quantity": 5,
-                "cushion_material": "leather"
-            }
-        )
-        inventory_cart_data = inventory_cart_response.get_json()
-        furniture_id_cartupdate = inventory_cart_data.get("id")
-        print("[DEBUG_APP]","Inventory for Cart Update:", inventory_cart_data)
-
-        # --- Update Shopping Cart for cartupdate@example.com ---
-        cart_response_initial = client.put(
-            f"/api/cart/cartupdate@example.com",
-            json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 3}]}
-        )
-        print("[DEBUG_APP]","Initial Cart Update:", cart_response_initial.get_json())
-
-        cart_response_updated = client.put(
-            f"/api/cart/cartupdate@example.com",
-            json={"items": [{"furniture_id": furniture_id_cartupdate, "quantity": 5}]}
-        )
-        print("[DEBUG_APP]","Updated Cart:", cart_response_updated.get_json())
-        cart_response_initial = client.put(
-            f"/api/cart/cartupdate@example.com",
-            json={
-                "items": [
-                    {
-                        "furniture_id": furniture_id_cartupdate,  
-                        "quantity": 3,                                                       
-                        "unit_price": 100.0                     
-                    }
-                ]
-            }
-        )
-        print("[DEBUG_APP]","Initial Cart Update:", cart_response_initial.get_json())
-
-        cart_response_updated = client.put(
-            f"/api/cart/cartupdate@example.com",
-            json={
-                "items": [
-                    {
-                        "furniture_id": furniture_id_cartupdate,  
-                        "quantity": 5,
-                        "unit_price": 300.0   # explicitly set the price
-                    }
-                ]
-            }
-        )
-        print("[DEBUG_APP]","Updated Cart:", cart_response_updated.get_json())
-
-        # --- Remove Item from Cart for cartupdate@example.com ---
-        remove_item_response = client.post(
-        f"/api/cart/cartupdate@example.com/remove",
-        json={
-        "item_id": furniture_id_cartupdate,   
-        "unit_price": 300.0,
-        "quantity": 3
-                }
-        )
-        print("[DEBUG_APP]","Remove Item from Cart:", remove_item_response.get_json())
-
-
-        # --- Checkout Process for cartupdate@example.com ---
-        checkout_payload = {"payment_method": "credit_card", "address": "123 Test St"}
-        checkout_response = client.post(f"/api/checkout/cartupdate@example.com", json=checkout_payload)
-        print("[DEBUG_APP]","Checkout Response:", checkout_response.get_json())
-
-        # --- Retrieve and Print All Orders ---
-        orders_response = client.get("/api/orders")
-        print("[DEBUG_APP]","All Orders:", orders_response.get_json())
-        
-
     app.run(debug=True)
